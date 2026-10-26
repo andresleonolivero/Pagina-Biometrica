@@ -1,0 +1,46 @@
+{
+  "rules": {
+    ".read": "auth != null && auth.token.email === 'lector@CAMBIA-ESTO.com'",
+    ".write": "auth != null && auth.token.email === 'lector@CAMBIA-ESTO.com'",
+
+    "niveles": { ".read": "auth != null" },
+
+    "panel": {
+      ".read": "root.child('panel/'+auth.uid+'/lv').val() >= 1",
+      "$uid": { ".read": "auth.uid === $uid" }
+    },
+
+    "usuarios": {
+      ".read": "root.child('panel/'+auth.uid+'/lv').val() >= 1",
+      "$id": {
+        ".write": "root.child('panel/'+auth.uid+'/lv').val() >= 1 && (!newData.exists() || root.child('niveles/'+newData.child('rol').val()).val() < root.child('panel/'+auth.uid+'/lv').val()) && (!data.exists() || root.child('niveles/'+data.child('rol').val()).val() < root.child('panel/'+auth.uid+'/lv').val())"
+      }
+    },
+
+    "eventos": {
+      ".read": "auth != null",
+      ".write": "root.child('panel/'+auth.uid+'/lv').val() >= 1"
+    },
+
+    "sesion": { ".read": "auth != null" },
+
+    "config": {
+      ".read": "auth != null",
+      ".write": "root.child('panel/'+auth.uid+'/lv').val() >= 1"
+    },
+
+    "registro": {
+      ".read": "root.child('panel/'+auth.uid+'/lv').val() >= 1",
+      ".write": "root.child('panel/'+auth.uid+'/lv').val() >= 1"
+    },
+
+    "borrar": {
+      ".write": "root.child('panel/'+auth.uid+'/lv').val() >= 1"
+    },
+
+    "eliminados": {
+      ".read": "auth != null",
+      "$k": { ".write": "!newData.exists() && root.child('panel/'+auth.uid+'/lv').val() >= 1" }
+    }
+  }
+}
