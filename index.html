@@ -81,12 +81,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-auth-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-database-compat.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-functions-compat.min.js"></script>
 <script>
 const firebaseConfig={apiKey:"AIzaSyAn8_oYjXP7wUx7wL0k6AVpdNiFccp3Sac",authDomain:"biometrico-b894c.firebaseapp.com",databaseURL:"https://biometrico-b894c-default-rtdb.firebaseio.com",projectId:"biometrico-b894c",storageBucket:"biometrico-b894c.firebasestorage.app",messagingSenderId:"625069604402",appId:"1:625069604402:web:0b01c984d70e933193862b"};
 // Jerarquía institucional (lv = nivel de autoridad). Quien tiene un nivel solo gestiona niveles inferiores.
 const ROLES={rector:{n:'Rector',lv:5,c:'#b8860b'},vicerrector:{n:'Vicerrector',lv:4,c:'#8e44ad'},decano:{n:'Decano',lv:3,c:'#2c7be5'},director:{n:'Director de programa',lv:2,c:'#0a9396'},docente:{n:'Docente',lv:1,c:'#2a9d6f'},estudiante:{n:'Estudiante',lv:0,c:'#6c7a89'}};
-// El Rector se define en functions/index.js (constante RECTOR)
+const RECTOR_INICIAL='elonandresleon6@gmail.com';  // Rector por defecto: administra todo el sistema
 const LV=r=>ROLES[r]?ROLES[r].lv:-1,TOL=5;
 let S={usuarios:{},eventos:{},sesion:null},me={nombre:'',rol:'docente'},db,enr=null,seen=null,N=[],unread=0,cfg={tipo:10,horas:48};
 const $=id=>document.getElementById(id);
@@ -104,16 +103,24 @@ const msg=(t,ok)=>{$('err').className=ok?'ok':'er';$('err').textContent=t||'';};
 function vista(v){['in','rec'].forEach(x=>$('v-'+x).hidden=x!=v);msg('');}
 const emailKey=c=>String(c||'').trim().toLowerCase().replace(/[.#$\[\]\/]/g,',');
 const ssGet=k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},ssSet=(k,v)=>{try{v===null?sessionStorage.removeItem(k):sessionStorage.setItem(k,v)}catch(e){}};
-function expulsar(){ssSet('exp','1');firebase.auth().signOut().then(()=>location.reload());}   // cuenta eliminada: se cierra la sesión
+async function expulsar(){ssSet('exp','1');   // persona eliminada: borra su propia cuenta de Authentication y cierra la sesión
+ try{const u=firebase.auth().currentUser;if(u)await u.delete();}catch(x){console.warn('autoborrado',x);}   // si falla (sesión vieja), se borrará en su próximo intento de ingreso
+ try{await firebase.auth().signOut();}catch(x){}location.reload();}
 const bonito=e=>e.split('@')[0].split(/[._-]+/).map(p=>p.charAt(0).toUpperCase()+p.slice(1)).join(' ');
 firebase.auth().onAuthStateChanged(u=>{if(!u){$('login').hidden=false;$('app').hidden=true;$('tools').hidden=true;if(ssGet('exp')){ssSet('exp',null);vista('in');msg('Esta cuenta fue eliminada por la universidad. Si es un error, contacta a tu director de programa.');}return;}route(u);});
 function noAutorizado(t){firebase.auth().signOut().then(()=>{$('login').hidden=false;vista('in');msg(t);});}
-// El servidor decide quién entra y con qué rol (el navegador ya no escribe su propio perfil)
+// Solo entra quien fue registrado por un superior, o el Rector definido en RECTOR_INICIAL
 async function route(u){
- try{me=(await firebase.functions().httpsCallable('iniciarSesion')()).data;start();}
- catch(x){console.warn('route',x);
-  if(x.code=='functions/permission-denied'){if(/eliminada/i.test(x.message||''))return expulsar();return noAutorizado('Tu correo no está registrado en el sistema. Contacta a tu director de programa.');}
-  noAutorizado('No se pudo cargar tu perfil. Revisa tu conexión o que la función iniciarSesion esté desplegada.');}}
+ const email=u.email.toLowerCase(),r=db.ref('panel/'+u.uid),rector=!!RECTOR_INICIAL&&email==RECTOR_INICIAL.toLowerCase();
+ try{
+  if(!rector&&(await db.ref('eliminados/'+emailKey(email)).once('value')).exists())return expulsar();
+  const us=(await db.ref('usuarios').once('value')).val()||{};
+  const id=Object.keys(us).find(k=>(us[k].correo||'').toLowerCase()==email);
+  if(rector)await r.set({id:id||'',nombre:id?us[id].nombre:bonito(email),rol:'rector',correo:email});
+  else if(id)await r.set({id,nombre:us[id].nombre,rol:us[id].rol,correo:email});
+  else return noAutorizado('Tu correo no está registrado en el sistema. Contacta a tu director de programa.');
+  me=(await r.once('value')).val();start();
+ }catch(x){console.warn('route',x);noAutorizado('No se pudo cargar tu perfil. Revisa tu conexión o las reglas de Firebase.');}}
 function entrar(){msg('');firebase.auth().signInWithEmailAndPassword($('em').value.trim(),$('pw').value).catch(x=>msg(x.code=='auth/too-many-requests'?ERR[x.code]:x.code=='auth/network-request-failed'?'Sin conexión a internet.':x.code=='auth/user-disabled'?'Esta cuenta está deshabilitada. Contacta a la universidad.':'Correo o contraseña incorrectos'));}
 function olvide(){const e=$('cem').value.trim();if(!e)return msg('Escribe tu correo.');
  firebase.auth().sendPasswordResetEmail(e).then(()=>msg('Si el correo tiene cuenta, te enviamos el enlace (revisa spam).',1)).catch(()=>msg('Correo no válido'));}
@@ -126,7 +133,7 @@ async function cambiarClave(){const u=firebase.auth().currentUser,n=$('cp1').val
 function start(){$('login').hidden=true;$('app').hidden=false;$('tools').hidden=false;$('yo').innerHTML=`${esc(me.nombre)} · ${ROLES[me.rol].n}`;
  db.ref('eliminados/'+emailKey(me.correo)).on('value',s=>{if(s.exists()&&me.rol!='rector')expulsar();});   // si la borran con la sesión abierta, sale al instante
  buildNav();db.ref('config').on('value',s=>{if(s.val())cfg=s.val();draw();});
- if(LV(me.rol)>=1)db.ref('usuarios').on('value',s=>{S.usuarios=s.val()||{};draw();});
+ db.ref('usuarios').on('value',s=>{S.usuarios=s.val()||{};draw();});
  db.ref('sesion').on('value',s=>{S.sesion=s.val();draw();});
  db.ref('eventos').limitToLast(500).on('value',s=>{S.eventos=s.val()||{};const k=Object.keys(S.eventos);
   if(seen===null)seen=new Set(k);else k.forEach(x=>{if(!seen.has(x)){seen.add(x);notificar(S.eventos[x]);}});draw();});}
@@ -193,18 +200,18 @@ async function cuenta(correo,clave,nombre,id){let ok=false,txt='',uid=null;
  $('pn').textContent=nombre;$('pc').textContent=correo;$('pk').textContent=ok?clave:'—';
  $('pm').textContent=ok?'Entrégasela a la persona. Puede cambiarla con el botón 🔑.':txt;$('dlgp').showModal();}
 
-// Borrado: primero intenta la Cloud Function (borra también la cuenta de Authentication); si no está desplegada, borra solo la base de datos y bloquea el acceso.
+// Borrado: elimina registro, perfil y huella, y bloquea el acceso (Authentication no se puede borrar desde la web)
 async function delU(id){const u=S.usuarios[id];if(!u||LV(u.rol)>=LV(me.rol))return toast('No tienes autoridad sobre este nivel');
- if(!confirm('¿Borrar a '+u.nombre+'? Se elimina su registro, su huella y su cuenta de acceso.'))return;
+ if(!confirm('¿Borrar a '+u.nombre+'? Se elimina su registro, su huella y se bloquea su acceso al portal.'))return;
  try{
-  await firebase.functions().httpsCallable('borrarPersona')({id});
-  return toast(u.nombre+' eliminado por completo (incluida su cuenta de acceso).');
- }catch(x){console.warn('borrarPersona',x);
-  if(x.code=='functions/permission-denied')return toast('No tienes autoridad sobre este nivel.');}
- try{   // plan B (sin la función): se borra el registro; sin él la persona ya no puede entrar
-  await db.ref('usuarios/'+id).remove();
+  const up={},mail=(u.correo||'').toLowerCase(),pan=(await db.ref('panel').once('value')).val()||{};
+  up['usuarios/'+id]=null;
+  Object.keys(pan).forEach(k=>{if(k==u.uid||(mail&&(pan[k].correo||'').toLowerCase()==mail)){up['panel/'+k]=null;up['biometria/'+k]=null;}});
+  if(u.uid){up['panel/'+u.uid]=null;up['biometria/'+u.uid]=null;}
+  if(mail)up['eliminados/'+emailKey(mail)]={nombre:u.nombre,por:me.nombre,ts:Date.now()};
+  await db.ref().update(up);
   if(/^\d+$/.test(id))db.ref('borrar').set({id:+id});
-  toast(u.nombre+' eliminado. Ya no podrá ingresar (su cuenta sigue en Authentication hasta desplegar la función).');
+  toast(u.nombre+' eliminado y bloqueado. Su cuenta de acceso se borrará sola cuando intente ingresar o si tiene la sesión abierta.');
  }catch(x){toast('No se pudo borrar: '+(/permission/i.test(x.message||x.code||'')?'las reglas de Firebase no lo permiten':'revisa tu conexión')+'.');console.warn('delU',x);}}
 
 // ===== Ingreso manual =====
