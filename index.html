@@ -106,10 +106,15 @@ const esU=e=>/^[\w.+-]+@unipamplona\.edu\.co$/i.test(String(e).trim()),MSGU='El 
 const ERR={'auth/email-already-in-use':'Ese correo ya tiene cuenta: usa «Ingresar» o recupera tu contraseña.','auth/weak-password':'La contraseña debe tener mínimo 6 caracteres.','auth/invalid-email':'Correo no válido.','auth/too-many-requests':'Demasiados intentos. Espera unos minutos.'};
 const msg=(t,ok)=>{$('err').className=ok?'ok':'er';$('err').textContent=t||'';};
 function vista(v){['in','reg','rec','ver','bio'].forEach(x=>$('v-'+x).hidden=x!=v);msg('');}
+const emailKey=c=>String(c||'').trim().toLowerCase().replace(/[.#$\[\]\/]/g,',');
+const ssGet=k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},ssSet=(k,v)=>{try{v===null?sessionStorage.removeItem(k):sessionStorage.setItem(k,v)}catch(e){}};
+function expulsar(){ssSet('exp','1');firebase.auth().signOut().then(()=>location.reload());}   // cuenta eliminada: se cierra la sesión
 const bonito=e=>e.split('@')[0].split(/[._-]+/).map(p=>p.charAt(0).toUpperCase()+p.slice(1)).join(' ');
-firebase.auth().onAuthStateChanged(u=>{if(!u){clearInterval(verT);$('login').hidden=false;$('app').hidden=true;return;}if(!creando)route(u);});
+firebase.auth().onAuthStateChanged(u=>{if(!u){clearInterval(verT);$('login').hidden=false;$('app').hidden=true;if(ssGet('exp')){ssSet('exp',null);vista('in');msg('Esta cuenta fue eliminada por la universidad. Si es un error, contacta a tu director de programa.');}return;}if(!creando)route(u);});
 async function route(u){
- const email=u.email.toLowerCase(),r=db.ref('panel/'+u.uid);let s=await r.once('value');
+ const email=u.email.toLowerCase(),r=db.ref('panel/'+u.uid);
+ if((await db.ref('eliminados/'+emailKey(email)).once('value').catch(()=>null))?.exists())return expulsar();   // la persona fue borrada por un superior
+ let s=await r.once('value');
  const us=(await db.ref('usuarios').once('value')).val()||{};const id=Object.keys(us).find(k=>(us[k].correo||'').toLowerCase()==email);tmp=!!(id&&us[id].claveTemporal);
  if(!s.exists()&&!u.emailVerified&&!tmp){$('login').hidden=false;$('vmail').textContent=u.email;vista('ver');   // espera la aceptación del correo
   clearInterval(verT);verT=setInterval(async()=>{await u.reload();if(u.emailVerified){clearInterval(verT);route(u);}},3000);return;}
@@ -138,6 +143,7 @@ async function cambiarClave(){const u=firebase.auth().currentUser,n=$('cp1').val
  try{await u.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(u.email,$('cp0').value));await u.updatePassword(n);$('dlgc').close();if(tmp&&me.id){db.ref('usuarios/'+me.id+'/claveTemporal').remove();tmp=false;}toast('Contraseña actualizada');}
  catch(x){$('cpe').textContent=/wrong-password|invalid-credential/.test(x.code)?'La contraseña actual es incorrecta.':'No se pudo aplicar el cambio. Intenta de nuevo.';}}
 function start(){$('login').hidden=true;$('app').hidden=false;$('tools').hidden=false;$('yo').innerHTML=`${esc(me.nombre)} · ${ROLES[me.rol].n}`;
+ db.ref('eliminados/'+emailKey(me.correo)).on('value',s=>{if(s.exists())expulsar();});   // si la borran con la sesión abierta, sale al instante
  buildNav();db.ref('config').on('value',s=>{if(s.val())cfg=s.val();draw();});
  db.ref('usuarios').on('value',s=>{S.usuarios=s.val()||{};draw();});
  db.ref('sesion').on('value',s=>{S.sesion=s.val();draw();});
@@ -181,7 +187,7 @@ async function bioAccion(){
   const u=c.user;regData=null;creando=false;setTimeout(()=>route(u),1200);
  }catch(x){creando=false;regData=null;vista('reg');msg(ERR[x.code]||'No se pudo crear la cuenta. Intenta de nuevo.');}
  finally{bioBusy=false;$('bgo').disabled=false;}}
-// Borrar a una persona también borra su huella de dispositivo
+// Busca el uid de una persona por su correo (para limpiar su perfil y su huella al borrarla)
 async function uidDe(correo){if(!correo)return null;const p=(await db.ref('panel').once('value')).val()||{};return Object.keys(p).find(k=>(p[k].correo||'').toLowerCase()==correo.toLowerCase())||null;}
 db.ref('.info/connected').on('value',s=>$('off').classList.toggle('on',s.val()===false));
 
@@ -234,23 +240,30 @@ function sug(){if(!claveManual&&$('ucl'))$('ucl').value=gen($('unom').value,$('u
 function addUsr(){const n=$('unom').value.replace(/["\\]/g,'').trim(),c=$('ucor').value.trim().toLowerCase();if(!n)return toast('Escribe el nombre');if(!esU(c))return toast(MSGU);
  const k=$('ucl').value||gen(n,c);if(k.length<6)return toast('La contraseña debe tener mínimo 6 caracteres');claveManual=false;enrolar(n,$('urol').value,c,k);}
 // Crea la cuenta de acceso con una app secundaria (así no se cierra tu sesión)
-async function cuenta(correo,clave,nombre,id){let ok=false,txt='';
- try{const a2=firebase.apps.find(a=>a.name=='sec')||firebase.initializeApp(firebaseConfig,'sec');await a2.auth().createUserWithEmailAndPassword(correo,clave);await a2.auth().signOut();ok=true;}
+async function cuenta(correo,clave,nombre,id){let ok=false,txt='',uid=null;
+ try{const a2=firebase.apps.find(a=>a.name=='sec')||firebase.initializeApp(firebaseConfig,'sec');const cr=await a2.auth().createUserWithEmailAndPassword(correo,clave);uid=cr.user.uid;await a2.auth().signOut();ok=true;}
  catch(x){txt=x.code=='auth/email-already-in-use'?'Ese correo ya tenía cuenta: la persona entra con su contraseña actual (o con «¿Olvidaste tu contraseña?»).':'No se pudo crear la cuenta ('+x.code+'). Que la persona use «Crear cuenta».';}
- db.ref('usuarios/'+id).update({correo,claveTemporal:ok?true:null});
+ db.ref('usuarios/'+id).update({correo,claveTemporal:ok?true:null,uid:uid||null});db.ref('eliminados/'+emailKey(correo)).remove();   // si antes la habían borrado, vuelve a tener acceso
  $('pn').textContent=nombre;$('pc').textContent=correo;$('pk').textContent=ok?clave:'—';
  $('pm').textContent=ok?'Entrégasela a la persona. Tendrá que cambiarla al ingresar por primera vez.':txt;$('dlgp').showModal();}
-function delU(id){const u=S.usuarios[id];if(!u||LV(u.rol)>=LV(me.rol))return toast('No tienes autoridad sobre este nivel');
- if(!confirm('¿Borrar a '+u.nombre+'? Se elimina también su huella del lector.'))return;
- uidDe(u.correo).then(uid=>uid&&db.ref('biometria/'+uid).remove());
- db.ref('usuarios/'+id).remove();if(/^\d+$/.test(id))db.ref('borrar').set({id:+id});}
+async function delU(id){const u=S.usuarios[id];if(!u||LV(u.rol)>=LV(me.rol))return toast('No tienes autoridad sobre este nivel');
+ if(!confirm('¿Borrar a '+u.nombre+'? Se elimina su registro, su huella del lector y se bloquea su acceso al portal.'))return;
+ try{
+  const uid=u.uid||await uidDe(u.correo),up={};
+  up['usuarios/'+id]=null;
+  if(uid){up['panel/'+uid]=null;up['biometria/'+uid]=null;}
+  if(u.correo)up['eliminados/'+emailKey(u.correo)]={nombre:u.nombre,por:me.nombre,ts:Date.now()};
+  await db.ref().update(up);
+  if(/^\d+$/.test(id))db.ref('borrar').set({id:+id});
+  toast(u.nombre+' eliminado'+(u.correo?'. Su cuenta de acceso quedó bloqueada.':'.'));
+ }catch(x){toast('No se pudo borrar: '+(/permission/i.test(x.message||x.code||'')?'la base de datos no lo permite (revisa las reglas de Firebase)':'revisa tu conexión')+'.');console.warn('delU',x);}}
 
 // ===== Ingreso manual =====
 function abrirManual(){if(!S.sesion||!S.sesion.activa)return toast('Primero el docente debe abrir la sesión de clase');$('mn').value='';$('dlgm').showModal();}
 function manual(){const nom=$('mn').value.replace(/["\\]/g,'').trim();if(!nom)return;
  let id=Object.keys(S.usuarios).find(k=>S.usuarios[k].rol=='estudiante'&&S.usuarios[k].nombre.toLowerCase()==nom.toLowerCase()),nombre=nom;
  if(id)nombre=S.usuarios[id].nombre;
- else{const c0=$('mc').value.trim();if(c0&&!esU(c0))return toast(MSGU);if(!confirm('«'+nom+'» no está en la lista. ¿Agregarlo como estudiante nuevo?'))return;id='m'+Date.now().toString(36);db.ref('usuarios/'+id).set({nombre:nom,rol:'estudiante',manual:true,correo:$('mc').value.trim().toLowerCase()});}
+ else{const c0=$('mc').value.trim();if(c0&&!esU(c0))return toast(MSGU);if(!confirm('«'+nom+'» no está en la lista. ¿Agregarlo como estudiante nuevo?'))return;id='m'+Date.now().toString(36);db.ref('usuarios/'+id).set({nombre:nom,rol:'estudiante',manual:true,correo:$('mc').value.trim().toLowerCase()});if($('mc').value.trim())db.ref('eliminados/'+emailKey($('mc').value)).remove();}
  if(pres().has(id))return toast('Ya registró entrada en esta sesión');
  const min=Math.floor((Date.now()-S.sesion.inicio)/60000);
  db.ref('eventos').push({id,nombre,rol:'estudiante',tipo:'entrada',retrasoMin:min>TOL?min:0,manual:true,motivo:$('mm').value,autorizadoPor:me.nombre,ts:Date.now()});
