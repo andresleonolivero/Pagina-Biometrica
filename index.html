@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Control de Acceso · Universidad de Pamplona</title>
+<style>
+:root{--bg:#f6f6f6;--sf:#fff;--gr:#efefef;--tx:#333;--mut:#6f6f6f;--bd:#e0e0e0;--g:#ab2f2f;--rb:#ab2f2f;--g2:#8c2323;--au:#e4a11b;--bl:#3366cc;--ok:#2e8b57;--wa:#c98a00;--er:#d23f3f}
+@media(prefers-color-scheme:dark){:root{--bg:#151011;--sf:#1e1819;--gr:#2a2122;--tx:#f1eaea;--mut:#b6a2a2;--bd:#3b2e2f;--g:#e87271;--rb:#8f2a2a;--g2:#b13c3b;--au:#f0be4a;--bl:#2b57b8;--ok:#4cc38a;--wa:#f2b84b;--er:#ff7b7b}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 "Segoe UI",Roboto,system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+.wrap{max-width:1180px;margin:auto;padding:0 20px}
+.top{background:var(--bl);color:#fff;padding:7px 0;font-size:13px;letter-spacing:.3px}
+.redbar{background:var(--rb);color:#fff;position:relative}.redbar .wrap{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:54px}
+.redbar #fecha{font-size:14px}.tools{display:flex;gap:4px;align-items:center}.tools button{background:none;border:0;color:#fff;font-size:21px;padding:6px 10px;border-radius:8px}.tools button:hover{background:#ffffff26}
+header{background:var(--sf);border-bottom:1px solid var(--bd);padding:18px 0 0}
+.hrow{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}.brand{display:flex;gap:16px;align-items:center}
+.logo{width:62px;height:62px;border-radius:50%;border:3px solid var(--au);background:var(--rb);color:#fff;display:grid;place-items:center;font-weight:800;font-size:20px;flex:none}
+.wm{font-size:clamp(22px,4.4vw,38px);font-weight:300;letter-spacing:.5px;color:var(--tx);line-height:1.1}.wm b{color:var(--g);font-weight:800}
+.sl{font-style:italic;color:var(--mut);font-size:14px;margin-top:2px}
+nav{display:flex;flex-wrap:wrap;justify-content:flex-end;margin:12px 0 0}
+nav button{border:0;border-left:1px solid var(--bd);border-radius:0;background:none;color:var(--mut);font-size:17px;font-weight:300;padding:7px 12px;cursor:pointer}nav button:first-child{border-left:0}
+nav button.on{background:var(--rb);color:#fff;font-weight:700}
+.strip{background:var(--gr);border-bottom:1px solid var(--bd);padding:12px 0;font-size:16px;text-align:center}
+main{max-width:1180px;margin:auto;padding:20px}
+h2{font-size:17px;margin:0 0 10px;font-weight:600}
+button,select,input{font:inherit;padding:8px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--sf);color:var(--tx)}button{cursor:pointer}
+.pri{background:var(--rb);color:#fff;border-color:var(--rb)}.au{background:var(--au);color:#2a1d05;border-color:var(--au);font-weight:600}.gh{background:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:14px}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px #0000000d}.grid .card{margin:0}
+.k{font-size:30px;font-weight:300}.l{color:var(--mut);font-size:13px}
+.feat{display:flex;flex-wrap:wrap;border:1px solid var(--bd);border-radius:14px;overflow:hidden;margin-bottom:14px;background:var(--gr)}
+.fr{background:var(--rb);color:#fff;padding:20px 24px;display:flex;gap:16px;align-items:center;min-width:300px}.fr b{font-size:58px;font-weight:300;line-height:1}.fr span{font-weight:600;font-size:17px;line-height:1.2}.fr small{display:block;font-weight:400;opacity:.85;font-size:13px;margin-top:6px}
+.fp{flex:1;min-width:240px;padding:16px 20px;display:flex;flex-wrap:wrap;gap:8px 22px;align-content:center}.fp span{border-left:3px solid var(--c);padding-left:8px;font-size:15px}
+.scroll{overflow-x:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--bd);white-space:nowrap}th{color:var(--mut);font-size:13px;font-weight:600}
+.tag{padding:2px 9px;border-radius:99px;font-size:12px;border:1px solid currentColor;white-space:nowrap;color:var(--mut)}
+.ok{color:var(--ok)}.wa{color:var(--wa)}.er{color:var(--er)}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.bar{height:8px;background:var(--bd);border-radius:4px;overflow:hidden;min-width:90px;margin-top:4px}.bar i{display:block;height:100%}
+.lvl{margin:0 auto 10px;border-left:6px solid var(--c)}.lvl h2{display:flex;justify-content:space-between;color:var(--c)}
+.pl{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}.p{display:flex;gap:8px;align-items:center;padding:8px;border:1px solid var(--bd);border-radius:10px}
+.av{width:34px;height:34px;border-radius:50%;background:var(--c);color:#fff;display:grid;place-items:center;font-weight:700;flex:none}.p div{flex:1;min-width:0}.p b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#login{max-width:380px;margin:40px auto}#login input{width:100%;margin-bottom:8px}#login a{color:var(--g)}
+dialog{border:0;border-radius:16px;padding:24px;width:min(400px,92vw);background:var(--sf);color:var(--tx);text-align:center}dialog::backdrop{background:#1a0b0bcc}
+dialog input,dialog select{width:100%;margin-bottom:8px}.hand{font-size:64px;transition:.3s}.hand.scan{animation:pu 1s infinite alternate}@keyframes pu{from{transform:scale(.9);opacity:.6}to{transform:scale(1.08);opacity:1}}
+.steps{display:flex;justify-content:center;gap:8px;margin:8px 0}.steps i{width:34px;height:6px;border-radius:3px;background:var(--bd)}.steps i.d{background:var(--ok)}.steps i.a{background:var(--au)}
+#nb{position:absolute;right:20px;top:100%;width:min(340px,92vw);max-height:60vh;overflow:auto;background:var(--sf);color:var(--tx);border:1px solid var(--bd);border-radius:12px;padding:10px;z-index:8;box-shadow:0 12px 40px #0005}
+#nb div{padding:8px;border-bottom:1px solid var(--bd)}#nb small{color:var(--mut)}
+#bd{background:var(--au);color:#2a1d05;border-radius:99px;padding:0 6px;font-size:12px;margin-left:2px;font-weight:700}
+#v-bio .hand{margin:6px 0}#v-bio .hand.ok{animation:none;color:var(--ok)}#v-bio .hand.er{animation:none}
+.off{display:none;background:var(--er);color:#fff;text-align:center;font-size:13px;padding:5px}.off.on{display:block}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--au);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.hand.scan{animation:none}}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:grid;gap:6px;z-index:9}#toast div{background:var(--tx);color:var(--bg);padding:9px 16px;border-radius:10px}
+</style></head><body>
+<div class="top"><div class="wrap">Sistema de control de acceso biométrico</div></div>
+<div class="off" id="off" role="alert">Sin conexión con el servidor. Los cambios se enviarán cuando vuelva la red.</div>
+<div class="redbar"><div class="wrap"><span id="fecha"></span><div class="tools" id="tools" hidden><button title="Notificaciones" onclick="bell()">🔔<span id="bd" hidden>0</span></button><button title="Cambiar contraseña" aria-label="Cambiar contraseña" onclick="abrirClave()">🔑</button><button title="Salir" onclick="firebase.auth().signOut().then(()=>location.reload())">🚪</button></div></div><div id="nb" hidden></div></div>
+<div id="login" class="card" hidden><div class="wm" style="font-size:25px">UNIVERSIDAD DE <b>PAMPLONA</b></div><p class="sl" style="margin:2px 0 14px">Control de acceso biométrico</p>
+<div id="v-in"><h2>Ingresar</h2><input id="em" type="email" placeholder="nombre.apellido@unipamplona.edu.co"><input id="pw" type="password" placeholder="Contraseña"><button class="pri" style="width:100%" onclick="entrar()">Ingresar</button>
+ <p class="l" style="margin:12px 0 0"><a href="#" onclick="vista('reg');return false">Crear cuenta nueva</a> · <a href="#" onclick="vista('rec');return false">¿Olvidaste tu contraseña?</a></p></div>
+<div id="v-reg" hidden><h2>Crear cuenta</h2><input id="rem" type="email" placeholder="nombre.apellido@unipamplona.edu.co"><input id="rp1" type="password" placeholder="Contraseña (mínimo 6)"><input id="rp2" type="password" placeholder="Repite la contraseña"><button class="pri" style="width:100%" onclick="crear()">Registrarme</button>
+ <p class="l">Pasos: 1) registras la huella (o rostro) de este celular o equipo, es obligatoria y sin ella no se crea la cuenta; 2) aceptas el correo que te enviamos.</p><p class="l"><a href="#" onclick="vista('in');return false">← Ya tengo cuenta</a></p></div>
+<div id="v-rec" hidden><h2>Recuperar contraseña</h2><p class="l">Escribe tu correo y te enviamos un enlace para crear una nueva.</p><input id="cem" type="email" placeholder="nombre.apellido@unipamplona.edu.co"><button class="pri" style="width:100%" onclick="olvide()">Enviar enlace</button><p class="l"><a href="#" onclick="vista('in');return false">← Volver a ingresar</a></p></div>
+<div id="v-ver" hidden><h2>📧 Verifica tu correo</h2><p>Enviamos un mensaje a <b id="vmail"></b>. Ábrelo y pulsa el enlace de aceptación: esta pantalla te llevará sola a tu portal.</p><p class="l">Revisa también la carpeta de spam.</p><div class="row"><button class="gh" onclick="reenviar()">Reenviar correo</button><button class="gh" onclick="cancelarVer()">Usar otro correo</button></div></div>
+<div id="v-bio" hidden><h2 id="bt"></h2><div id="bh" class="hand">👆</div><p id="bp" style="min-height:44px"></p>
+ <button class="pri" id="bgo" style="width:100%" onclick="bioAccion()"></button>
+ <p class="l" style="margin:12px 0 0">La huella nunca sale de tu dispositivo: solo se guarda una llave pública que confirma que fuiste tú.</p>
+ <p class="l"><a href="#" onclick="regData=null;vista('reg');return false">← Cancelar</a></p></div>
+<p id="err" class="er" style="min-height:20px;margin:8px 0 0"></p></div>
+<div id="app" hidden>
+<header><div class="wrap"><div class="hrow"><div class="brand"><div class="logo">UP</div><div><div class="wm">UNIVERSIDAD DE <b>PAMPLONA</b></div><div class="sl" id="sub">Control de acceso biométrico</div></div></div><span id="yo" class="tag"></span></div>
+<nav id="nav"></nav></div></header>
+<div class="strip"><span id="ses"></span></div>
+<main>
+<section id="mi" hidden></section><section id="res" hidden></section><section id="per" hidden></section><section id="asi" hidden></section>
+</main></div>
+
+<dialog id="dlg"><div id="hand" class="hand">🖐️</div><h2 id="dnom"></h2><div class="steps"><i></i><i></i><i></i></div><p id="dmsg" style="min-height:22px"></p><button class="gh" id="dbtn" onclick="cerrarEnrol()">Cancelar</button></dialog>
+<dialog id="dlgm"><h2>✍️ Ingreso manual de estudiante</h2><p class="l">Úsalo cuando la huella no lee o el estudiante no aparece en la lista.</p>
+<input id="mn" list="estl" placeholder="Nombre del estudiante"><datalist id="estl"></datalist><input id="mc" type="email" placeholder="Correo @unipamplona.edu.co (si es nuevo)">
+<select id="mm"><option>La huella no lee</option><option>Olvidó registrarse</option><option>Autorizado por el docente</option><option>Estudiante nuevo / sin huella</option></select>
+<div class="row" style="justify-content:center"><button class="au" onclick="manual()">Registrar ingreso</button><button class="gh" onclick="$('dlgm').close()">Cancelar</button></div>
+<p class="l">Si no está en la lista, escribe el nombre completo y se agregará como estudiante nuevo.</p></dialog>
+<dialog id="dlgc"><h2>🔑 Cambiar contraseña</h2><input id="cp0" type="password" placeholder="Contraseña actual"><input id="cp1" type="password" placeholder="Nueva contraseña (mínimo 6)"><input id="cp2" type="password" placeholder="Repite la nueva contraseña"><p id="cpe" class="er"></p>
+<div class="row" style="justify-content:center"><button class="pri" onclick="cambiarClave()">Guardar</button><button class="gh" id="cpx" onclick="$('dlgc').close()">Cancelar</button></div></dialog>
+<dialog id="dlgp"><h2>✅ Persona registrada</h2><p style="margin:0"><b id="pn"></b><br><span class="l" id="pc"></span></p><p class="l" style="margin:12px 0 0">Contraseña temporal</p>
+<div id="pk" style="font-size:22px;font-weight:700;padding:10px;border:1px dashed var(--g);border-radius:10px;margin:6px 0;user-select:all;word-break:break-all"></div><p id="pm" class="l"></p>
+<div class="row" style="justify-content:center"><button class="au" onclick="navigator.clipboard&&navigator.clipboard.writeText($('pk').textContent);toast('Contraseña copiada')">Copiar</button><button class="gh" onclick="$('dlgp').close()">Cerrar</button></div></dialog>
+<div id="toast"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-auth-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-database-compat.min.js"></script>
+<script>
+const firebaseConfig={apiKey:"AIzaSyAn8_oYjXP7wUx7wL0k6AVpdNiFccp3Sac",authDomain:"biometrico-b894c.firebaseapp.com",databaseURL:"https://biometrico-b894c-default-rtdb.firebaseio.com",projectId:"biometrico-b894c",storageBucket:"biometrico-b894c.firebasestorage.app",messagingSenderId:"625069604402",appId:"1:625069604402:web:0b01c984d70e933193862b"};
+// Jerarquía institucional (lv = nivel de autoridad). Quien tiene un nivel puede gestionar solo niveles inferiores.
+const ROLES={rector:{n:'Rector',lv:5,c:'#b8860b'},vicerrector:{n:'Vicerrector',lv:4,c:'#8e44ad'},decano:{n:'Decano',lv:3,c:'#2c7be5'},director:{n:'Director de programa',lv:2,c:'#0a9396'},docente:{n:'Docente',lv:1,c:'#2a9d6f'},estudiante:{n:'Estudiante',lv:0,c:'#6c7a89'}};
+const RECTOR_INICIAL='';   // Pon aquí el correo institucional del Rector. Si queda vacío, el primer registro de la plataforma será el Rector.
+const LV=r=>ROLES[r]?ROLES[r].lv:-1,TOL=5;
+let S={usuarios:{},eventos:{},sesion:null},me={nombre:'',rol:'docente'},db,enr=null,seen=null,N=[],unread=0,cfg={tipo:10,horas:48};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=t=>new Date(t).toLocaleString('es-CO',{dateStyle:'short',timeStyle:'short'});
+const toast=m=>{const d=document.createElement('div');d.textContent=m;$('toast').append(d);setTimeout(()=>d.remove(),4000)};
+const rolTag=r=>ROLES[r]?`<span class="tag" style="color:${ROLES[r].c}">${ROLES[r].n}</span>`:'';
+const evs=()=>Object.values(S.eventos).sort((a,b)=>b.ts-a.ts);
+
+{const d=new Date().toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',year:'numeric'});$('fecha').textContent=d.charAt(0).toUpperCase()+d.slice(1);}
+firebase.initializeApp(firebaseConfig);db=firebase.database();
+const esU=e=>/^[\w.+-]+@unipamplona\.edu\.co$/i.test(String(e).trim()),MSGU='El correo debe ser institucional: nombre.apellido@unipamplona.edu.co';let creando=false,verT=null,tmp=false;
+const ERR={'auth/email-already-in-use':'Ese correo ya tiene cuenta: usa «Ingresar» o recupera tu contraseña.','auth/weak-password':'La contraseña debe tener mínimo 6 caracteres.','auth/invalid-email':'Correo no válido.','auth/too-many-requests':'Demasiados intentos. Espera unos minutos.'};
+const msg=(t,ok)=>{$('err').className=ok?'ok':'er';$('err').textContent=t||'';};
+function vista(v){['in','reg','rec','ver','bio'].forEach(x=>$('v-'+x).hidden=x!=v);msg('');}
+const bonito=e=>e.split('@')[0].split(/[._-]+/).map(p=>p.charAt(0).toUpperCase()+p.slice(1)).join(' ');
+firebase.auth().onAuthStateChanged(u=>{if(!u){clearInterval(verT);$('login').hidden=false;$('app').hidden=true;return;}if(!creando)route(u);});
+async function route(u){
+ const email=u.email.toLowerCase(),r=db.ref('panel/'+u.uid);let s=await r.once('value');
+ const us=(await db.ref('usuarios').once('value')).val()||{};const id=Object.keys(us).find(k=>(us[k].correo||'').toLowerCase()==email);tmp=!!(id&&us[id].claveTemporal);
+ if(!s.exists()&&!u.emailVerified&&!tmp){$('login').hidden=false;$('vmail').textContent=u.email;vista('ver');   // espera la aceptación del correo
+  clearInterval(verT);verT=setInterval(async()=>{await u.reload();if(u.emailVerified){clearInterval(verT);route(u);}},3000);return;}
+ if(id){const p={id,nombre:us[id].nombre,rol:us[id].rol,correo:email};if(!s.exists()||s.val().id!=id||s.val().rol!=p.rol)await r.set(p);}   // vincula con la persona registrada (y sincroniza cambios de rol)
+ else if(!s.exists()){const a=await db.ref('panel').limitToFirst(1).once('value');
+  const esRector=RECTOR_INICIAL?email==RECTOR_INICIAL.toLowerCase():!a.exists();
+  await r.set({id:'',nombre:bonito(email),rol:esRector?'rector':'estudiante',correo:email});}   // sin registro previo: entra como estudiante; el primero de todos queda como Rector
+ me=(await r.once('value')).val();
+ start();if(tmp)abrirClave(true);}
+function entrar(){msg('');firebase.auth().signInWithEmailAndPassword($('em').value.trim(),$('pw').value).catch(x=>msg(x.code=='auth/too-many-requests'?ERR[x.code]:x.code=='auth/network-request-failed'?'Sin conexión a internet.':x.code=='auth/user-disabled'?'Esta cuenta está deshabilitada. Contacta a la universidad.':'Correo o contraseña incorrectos'));}
+// Crear cuenta: la huella del dispositivo es OBLIGATORIA (si se cancela, la cuenta no se crea)
+let regData=null,bioBusy=false;
+async function crear(){const e=$('rem').value.trim().toLowerCase(),p=$('rp1').value;msg('');
+ if(!esU(e))return msg(MSGU);if(p.length<6)return msg(ERR['auth/weak-password']);if(p!=$('rp2').value)return msg('Las contraseñas no coinciden.');
+ const ok=await bioDisponible();regData={e,p,ok};
+ if(ok)bioVista('Registra tu huella','Es obligatorio para crear tu cuenta. Usa la huella (o el rostro) de este celular o computador. Si cancelas, la cuenta no se crea.','Registrar huella y crear cuenta','scan');
+ else bioVista('Este equipo no tiene huella','Para crear tu cuenta necesitas un dispositivo con huella, rostro o bloqueo de pantalla activado, y abrir la página por HTTPS. Actívalo en los ajustes o crea tu cuenta desde tu celular.','Volver','er');}
+function olvide(){const e=$('cem').value.trim();if(!e)return msg('Escribe tu correo.');
+ firebase.auth().sendPasswordResetEmail(e).then(()=>msg('Si el correo tiene cuenta, te enviamos el enlace (revisa spam).',1)).catch(()=>msg('Correo no válido'));}
+function reenviar(){const u=firebase.auth().currentUser;u&&u.sendEmailVerification().then(()=>msg('Correo reenviado.',1)).catch(()=>msg(ERR['auth/too-many-requests']));}
+function cancelarVer(){clearInterval(verT);firebase.auth().signOut().then(()=>vista('reg'));}
+function abrirClave(f){['cp0','cp1','cp2'].forEach(i=>$(i).value='');$('cpe').textContent=f===true?'Por seguridad, cambia la contraseña temporal para continuar.':'';$('cpx').hidden=f===true;$('dlgc').showModal();}
+async function cambiarClave(){const u=firebase.auth().currentUser,n=$('cp1').value;
+ if(n.length<6)return $('cpe').textContent='La nueva contraseña debe tener mínimo 6 caracteres.';
+ if(n!=$('cp2').value)return $('cpe').textContent='Las contraseñas nuevas no coinciden.';
+ try{await u.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(u.email,$('cp0').value));await u.updatePassword(n);$('dlgc').close();if(tmp&&me.id){db.ref('usuarios/'+me.id+'/claveTemporal').remove();tmp=false;}toast('Contraseña actualizada');}
+ catch(x){$('cpe').textContent=/wrong-password|invalid-credential/.test(x.code)?'La contraseña actual es incorrecta.':'No se pudo aplicar el cambio. Intenta de nuevo.';}}
+function start(){$('login').hidden=true;$('app').hidden=false;$('tools').hidden=false;$('yo').innerHTML=`${esc(me.nombre)} · ${ROLES[me.rol].n}`;
+ buildNav();db.ref('config').on('value',s=>{if(s.val())cfg=s.val();draw();});
+ db.ref('usuarios').on('value',s=>{S.usuarios=s.val()||{};draw();});
+ db.ref('sesion').on('value',s=>{S.sesion=s.val();draw();});
+ db.ref('eventos').limitToLast(500).on('value',s=>{S.eventos=s.val()||{};const k=Object.keys(S.eventos);
+  if(seen===null)seen=new Set(k);else k.forEach(x=>{if(!seen.has(x)){seen.add(x);notificar(S.eventos[x]);}});draw();});}
+const T={rector:'Despacho del Rector · vista institucional',vicerrector:'Vicerrectoría · vista académica',decano:'Decanatura · vista de facultad',director:'Dirección de programa',docente:'Portal docente',estudiante:'Portal estudiantil'};
+function buildNav(){const L=LV(me.rol),tabs=L==0?[['mi','Mi asistencia']]:[['res',L==1?'Mi clase':L==2?'Mi programa':L==3?'Mi facultad':'Institucional'],['per',L==1?'Mis estudiantes':'Personas y jerarquía'],['asi','Inasistencias']];
+ $('nav').innerHTML=tabs.map((t,i)=>`<button data-t="${t[0]}" class="${i?'':'on'}">${t[1]}</button>`).join('');
+ const show=t=>['mi','res','per','asi'].forEach(x=>$(x).hidden=x!=t);show(tabs[0][0]);
+ $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('nav').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x==b));show(b.dataset.t);});
+ document.querySelector('header').style.borderBottomColor=ROLES[me.rol].c;$('sub').textContent=T[me.rol];}
+
+$('dlgc').addEventListener('cancel',e=>{if(tmp)e.preventDefault();});
+// ===== Huella del dispositivo (WebAuthn): huella, rostro o bloqueo de pantalla =====
+const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const sha=async t=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))].map(x=>x.toString(16).padStart(2,'0')).join('');
+const nombreEquipo=()=>{const u=navigator.userAgent,so=/Android/.test(u)?'Android':/iPhone|iPad/.test(u)?'iPhone/iPad':/Windows/.test(u)?'Windows':/Mac/.test(u)?'Mac':/Linux/.test(u)?'Linux':'Equipo',nv=/Edg\//.test(u)?'Edge':/OPR\//.test(u)?'Opera':/Chrome\//.test(u)?'Chrome':/Safari\//.test(u)?'Safari':/Firefox\//.test(u)?'Firefox':'Navegador';return so+' · '+nv;};
+async function bioDisponible(){if(!(window.PublicKeyCredential&&window.isSecureContext&&navigator.credentials))return false;try{return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();}catch(e){return false;}}
+const bioErr=x=>x&&x.name=='NotAllowedError'?'Cancelaste o se agotó el tiempo. La cuenta no se crea sin la huella: vuelve a intentarlo.':x&&x.name=='SecurityError'?'La página debe abrirse por HTTPS (enlace seguro) para usar la huella.':'No se pudo leer la huella. Vuelve a intentarlo.';
+function bioVista(t,p,btn,est){$('bt').textContent=t;$('bp').textContent=p;$('bgo').textContent=btn;$('bgo').hidden=!btn;$('bh').className='hand '+(est||'');vista('bio');}
+async function bioCrearCred(email){
+ const uid=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(email)));
+ const c=await navigator.credentials.create({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),
+  rp:{name:'Universidad de Pamplona · Control de acceso',id:location.hostname},
+  user:{id:uid,name:email,displayName:bonito(email)},
+  pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+  authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'preferred'},attestation:'none',timeout:60000}});
+ return {id:b64(c.rawId),pk:c.response.getPublicKey?b64(c.response.getPublicKey()):''};}
+async function bioAccion(){
+ if(bioBusy||!regData)return;if(!regData.ok){regData=null;return vista('reg');}
+ bioBusy=true;$('bgo').disabled=true;msg('');
+ let cred;
+ try{cred=await bioCrearCred(regData.e);}catch(x){msg(bioErr(x));console.warn('bio',x);bioBusy=false;$('bgo').disabled=false;return;}   // sin huella no se crea la cuenta
+ creando=true;
+ try{
+  const c=await firebase.auth().createUserWithEmailAndPassword(regData.e,regData.p);
+  try{await db.ref('biometria/'+c.user.uid+'/'+await sha(cred.id)).set({id:cred.id,pk:cred.pk,dispositivo:nombreEquipo(),creado:Date.now()});}
+  catch(z){await c.user.delete().catch(()=>{});throw z;}   // si no se pudo guardar la huella, no queda una cuenta sin ella
+  try{await c.user.sendEmailVerification();}catch(z){}
+  bioVista('¡Huella guardada!','Tu cuenta fue creada. Ahora confirma tu correo.','','ok');$('bgo').hidden=true;
+  const u=c.user;regData=null;creando=false;setTimeout(()=>route(u),1200);
+ }catch(x){creando=false;regData=null;vista('reg');msg(ERR[x.code]||'No se pudo crear la cuenta. Intenta de nuevo.');}
+ finally{bioBusy=false;$('bgo').disabled=false;}}
+// Borrar a una persona también borra su huella de dispositivo
+async function uidDe(correo){if(!correo)return null;const p=(await db.ref('panel').once('value')).val()||{};return Object.keys(p).find(k=>(p[k].correo||'').toLowerCase()==correo.toLowerCase())||null;}
+db.ref('.info/connected').on('value',s=>$('off').classList.toggle('on',s.val()===false));
+
+// ===== Notificaciones =====
+function notificar(e){if(me.rol=='estudiante'&&!/sesion/.test(e.tipo)&&String(e.id)!=String(me.id))return;const n=e.nombre||'Alguien';let t;
+ if(e.tipo=='denegado')t=`⛔ Acceso denegado: ${n} (${e.motivo||'sin motivo'})`;
+ else if(e.tipo=='entrada')t=e.manual?`✍️ Ingreso manual de ${n} · ${e.motivo||''} · autorizó ${e.autorizadoPor||''}`:e.retrasoMin>0?`⏰ ${n} llegó ${e.retrasoMin} min tarde`:`✅ ${n} ingresó a tiempo`;
+ else if(e.tipo=='inicio_sesion')t=`🔓 ${n} abrió la sesión de clase`;
+ else if(e.tipo=='cierre_sesion')t=`🔒 ${n} cerró la sesión de clase`;
+ else t=`🏛️ ${ROLES[e.rol]?ROLES[e.rol].n:'Directivo'} ${n} ingresó`;
+ N.unshift({t,ts:e.ts||Date.now()});N=N.slice(0,40);unread++;toast(t);bd();
+ if(window.Notification&&Notification.permission=='granted')new Notification('Universidad de Pamplona',{body:t});}
+function bd(){$('bd').hidden=!unread;$('bd').textContent=unread;}
+function bell(){const o=$('nb');o.hidden=!o.hidden;if(!o.hidden){unread=0;bd();
+ if(window.Notification&&Notification.permission=='default')Notification.requestPermission();
+ o.innerHTML=N.length?N.map(x=>`<div>${esc(x.t)}<br><small>${fmt(x.ts)}</small></div>`).join(''):'<div class="l">Sin notificaciones nuevas. Aquí aparecerán ingresos, retrasos, accesos denegados y sesiones.</div>';}}
+
+// ===== Dibujo =====
+const pres=()=>{const i=S.sesion&&S.sesion.activa?S.sesion.inicio:0;return new Set(i?evs().filter(e=>e.tipo=='entrada'&&e.ts>=i).map(e=>String(e.id)):[]);};
+const evTxt=e=>({entrada:e.retrasoMin>0?`Entrada · ${e.retrasoMin} min tarde`:'Entrada a tiempo',inicio_sesion:'Abrió sesión',cierre_sesion:'Cerró sesión',denegado:'⛔ Denegado: '+esc(e.motivo||''),acceso:'Acceso directivo'}[e.tipo]||esc(e.tipo))+(e.manual?' ✍️ manual':'');
+function draw(){if(LV(me.rol)==0)return drawMi();const se=S.sesion,ev=evs(),P=pres(),est=Object.values(S.usuarios).filter(u=>u.rol=='estudiante').length;
+ $('ses').innerHTML=se&&se.activa?`● Sesión abierta · ${esc(se.docente||'')}`:'○ Sin sesión';
+ const tarde=ev.filter(e=>e.tipo=='entrada'&&se&&se.activa&&e.ts>=se.inicio&&e.retrasoMin>0).length,pct=est?Math.min(100,P.size/est*100):0;
+ $('res').innerHTML=`<div class="feat"><div class="fr"><b>${P.size}/${est}</b><span>Estudiantes<br>presentes<small>${se&&se.activa?'Clase en curso · '+esc(se.docente||''):'Sin clase abierta'}</small></span></div>
+ <div class="fp">${Object.entries(ROLES).sort((a,b)=>b[1].lv-a[1].lv).map(([k,R])=>`<span style="--c:${R.c}">${R.n} · <b>${Object.values(S.usuarios).filter(u=>u.rol==k).length}</b></span>`).join('')}</div></div>
+ <div class="two1">
+ <div><div class="grid"><div class="card"><div class="k wa">${tarde}</div><div class="l">Llegaron tarde</div></div><div class="card"><div class="k">${Math.max(0,est-P.size)}</div><div class="l">Aún sin ingresar</div></div>
+ <div class="card"><div class="k">${Object.keys(S.usuarios).length}</div><div class="l">Personas registradas</div></div></div>
+ ${LV(me.rol)>=1?`<button class="au" style="margin-top:12px" onclick="abrirManual()">✍️ Ingreso manual de estudiante</button>`:''}</div></div>
+ <div class="card"><h2>Actividad reciente</h2><div class="scroll"><table><tr><th>Fecha</th><th>Persona</th><th>Rol</th><th>Evento</th></tr>${ev.slice(0,12).map(e=>`<tr><td>${fmt(e.ts)}</td><td>${esc(e.nombre)}</td><td>${rolTag(e.rol)}</td><td>${evTxt(e)}</td></tr>`).join('')}</table></div></div>`;
+ drawPer();drawAsi();}
+function drawMi(){const se=S.sesion,mine=evs().filter(e=>e.tipo=='entrada'&&String(e.id)==String(me.id)),m=mine.reduce((a,e)=>a+e.retrasoMin,0),f=Math.floor(m/60),p=f/cfg.horas*100,U=cfg.tipo,s=p>=U?['Pérdida de la materia','er']:p>=U-2?['En alerta','wa']:['Normal','ok'];
+ $('ses').innerHTML=se&&se.activa?`● Sesión abierta · ${esc(se.docente||'')}`:'○ Sin sesión';
+ const ya=se&&se.activa&&mine.some(e=>e.ts>=se.inicio);
+ $('mi').innerHTML=`${me.id?'':'<div class="card" style="border-color:var(--wa)">⚠️ Aún no tienes tu huella registrada en el lector del salón. Pide a tu docente o director que te registre con este correo; cuando lo haga, tus datos aparecerán aquí.</div>'}<div class="card"><h2>Hola, ${esc(me.nombre)} 👋</h2><p style="margin:0">${se&&se.activa?(ya?'✅ Tu entrada a la clase actual ya quedó registrada.':'⏳ Hay clase en curso y aún no registras tu entrada. Pon tu huella en el lector.'):'No hay una clase abierta en este momento.'}</p></div>
+ <div class="grid"><div class="card"><div class="k">${mine.length}</div><div class="l">Entradas registradas</div></div><div class="card"><div class="k wa">${m} min</div><div class="l">Retraso acumulado</div></div><div class="card"><div class="k">${f}</div><div class="l">Fallas</div></div>
+ <div class="card"><div class="k ${s[1]}">${p.toFixed(1)}%</div><div class="l">Inasistencia · límite ${U}%</div><div class="bar"><i style="width:${Math.min(100,p/U*100)}%;background:var(--${s[1]})"></i></div></div></div>
+ <div class="card" style="margin-top:12px"><h2>Estado: <span class="${s[1]}">${s[0]}</span></h2><div class="scroll"><table><tr><th>Fecha</th><th>Registro</th></tr>${mine.slice(0,30).map(e=>`<tr><td>${fmt(e.ts)}</td><td>${evTxt(e)}</td></tr>`).join('')||'<tr><td colspan="2" class="l">Aún no tienes entradas registradas.</td></tr>'}</table></div></div>`;}
+function drawPer(){if(document.activeElement&&document.activeElement.matches('#per input,#per select'))return;
+ const mine=Object.keys(ROLES).filter(r=>LV(r)<LV(me.rol));
+ const form=mine.length?`<div class="card"><h2>Registrar persona con huella</h2><div class="row"><input id="unom" placeholder="Nombre completo" style="flex:1;min-width:170px" oninput="sug()"><input id="ucor" type="email" placeholder="nombre.apellido@unipamplona.edu.co" style="flex:1;min-width:190px" oninput="sug()"><input id="ucl" placeholder="Contraseña temporal (se genera sola)" style="flex:1;min-width:190px" oninput="claveManual=!!this.value"><button title="Generar otra" onclick="claveManual=false;sug()">🎲</button><select id="urol">${mine.map(r=>`<option value="${r}">${ROLES[r].n}</option>`).join('')}</select><button class="pri" onclick="addUsr()">Registrar huella</button></div>
+  <p class="l" style="margin:0">Como ${ROLES[me.rol].n} puedes registrar a quienes están por debajo de tu nivel. El lector pedirá poner el dedo dos veces. La contraseña se genera sola a partir del nombre y el correo (puedes escribir otra); la persona deberá cambiarla en su primer ingreso.</p></div>`:'';
+ const lv=Object.entries(ROLES).filter(([,R])=>R.lv<=LV(me.rol)).sort((a,b)=>b[1].lv-a[1].lv).map(([k,R])=>{const L=Object.entries(S.usuarios).filter(([,u])=>u.rol==k);
+  return `<div class="card lvl" style="--c:${R.c};max-width:${58+(5-R.lv)*8.4}%"><h2><span>${R.n}</span><span class="l">Nivel ${R.lv} · ${L.length}</span></h2><div class="pl">${L.map(([id,u])=>`<div class="p"><span class="av">${esc((u.nombre||'?')[0].toUpperCase())}</span><div><b>${esc(u.nombre)}</b><span class="l">${u.manual?'huella del lector pendiente':'ID '+esc(id)}${u.correo?' · '+esc(u.correo):''}</span></div>${LV(k)<LV(me.rol)?`<button title="Borrar" aria-label="Borrar" onclick="delU('${esc(id)}')">✕</button>`:''}</div>`).join('')||'<span class="l">Sin personas en este nivel</span>'}</div></div>`;}).join('');
+ const ids=['unom','ucor','ucl','urol'],v=ids.map(i=>$(i)&&$(i).value);$('per').innerHTML=form+lv;ids.forEach((i,k)=>{if($(i)&&v[k])$(i).value=v[k];});$('estl').innerHTML=Object.values(S.usuarios).filter(u=>u.rol=='estudiante').map(u=>`<option value="${esc(u.nombre)}">`).join('');}
+let claveManual=false;
+const gen=(n,c)=>{const q=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,''),p=q(n).trim().split(/\s+/)[0].replace(/[^a-z]/gi,'')||'Usuario',l=q(c).split('@')[0].replace(/[^a-z]/gi,'').slice(0,3).toLowerCase()||'upa';
+ return p.charAt(0).toUpperCase()+p.slice(1).toLowerCase()+'#'+l+Math.floor(1000+Math.random()*9000);};
+function sug(){if(!claveManual&&$('ucl'))$('ucl').value=gen($('unom').value,$('ucor').value);}
+function addUsr(){const n=$('unom').value.replace(/["\\]/g,'').trim(),c=$('ucor').value.trim().toLowerCase();if(!n)return toast('Escribe el nombre');if(!esU(c))return toast(MSGU);
+ const k=$('ucl').value||gen(n,c);if(k.length<6)return toast('La contraseña debe tener mínimo 6 caracteres');claveManual=false;enrolar(n,$('urol').value,c,k);}
+// Crea la cuenta de acceso con una app secundaria (así no se cierra tu sesión)
+async function cuenta(correo,clave,nombre,id){let ok=false,txt='';
+ try{const a2=firebase.apps.find(a=>a.name=='sec')||firebase.initializeApp(firebaseConfig,'sec');await a2.auth().createUserWithEmailAndPassword(correo,clave);await a2.auth().signOut();ok=true;}
+ catch(x){txt=x.code=='auth/email-already-in-use'?'Ese correo ya tenía cuenta: la persona entra con su contraseña actual (o con «¿Olvidaste tu contraseña?»).':'No se pudo crear la cuenta ('+x.code+'). Que la persona use «Crear cuenta».';}
+ db.ref('usuarios/'+id).update({correo,claveTemporal:ok?true:null});
+ $('pn').textContent=nombre;$('pc').textContent=correo;$('pk').textContent=ok?clave:'—';
+ $('pm').textContent=ok?'Entrégasela a la persona. Tendrá que cambiarla al ingresar por primera vez.':txt;$('dlgp').showModal();}
+function delU(id){const u=S.usuarios[id];if(!u||LV(u.rol)>=LV(me.rol))return toast('No tienes autoridad sobre este nivel');
+ if(!confirm('¿Borrar a '+u.nombre+'? Se elimina también su huella del lector.'))return;
+ uidDe(u.correo).then(uid=>uid&&db.ref('biometria/'+uid).remove());
+ db.ref('usuarios/'+id).remove();if(/^\d+$/.test(id))db.ref('borrar').set({id:+id});}
+
+// ===== Ingreso manual =====
+function abrirManual(){if(!S.sesion||!S.sesion.activa)return toast('Primero el docente debe abrir la sesión de clase');$('mn').value='';$('dlgm').showModal();}
+function manual(){const nom=$('mn').value.replace(/["\\]/g,'').trim();if(!nom)return;
+ let id=Object.keys(S.usuarios).find(k=>S.usuarios[k].rol=='estudiante'&&S.usuarios[k].nombre.toLowerCase()==nom.toLowerCase()),nombre=nom;
+ if(id)nombre=S.usuarios[id].nombre;
+ else{const c0=$('mc').value.trim();if(c0&&!esU(c0))return toast(MSGU);if(!confirm('«'+nom+'» no está en la lista. ¿Agregarlo como estudiante nuevo?'))return;id='m'+Date.now().toString(36);db.ref('usuarios/'+id).set({nombre:nom,rol:'estudiante',manual:true,correo:$('mc').value.trim().toLowerCase()});}
+ if(pres().has(id))return toast('Ya registró entrada en esta sesión');
+ const min=Math.floor((Date.now()-S.sesion.inicio)/60000);
+ db.ref('eventos').push({id,nombre,rol:'estudiante',tipo:'entrada',retrasoMin:min>TOL?min:0,manual:true,motivo:$('mm').value,autorizadoPor:me.nombre,ts:Date.now()});
+ $('dlgm').close();}
+
+// ===== Registro de huella (protocolo con el ESP32: /registro) =====
+const MAP={paso1:1,quitar:2,paso2:3};
+const ST=(p,m,c)=>{$('dmsg').textContent=m;$('hand').className='hand '+(c||'scan');document.querySelectorAll('.steps i').forEach((x,i)=>x.className=p>i+1||p>3?'d':p==i+1?'a':'');};
+function enrolar(nombre,rol,correo,clave){enr={ref:db.ref('registro')};$('dnom').textContent=nombre+' · '+ROLES[rol].n;$('dbtn').textContent='Cancelar';ST(0,'Esperando al lector…');$('dlg').showModal();
+ enr.ref.set({nombre,rol,estado:'pendiente',mensaje:'Esperando al lector…'});
+ enr.ref.on('value',s=>{const c=s.val();if(!c)return;if(MAP[c.estado])ST(MAP[c.estado],c.mensaje);
+  if(c.estado=='ok'){const m=/ID (\d+)/.exec(c.mensaje||'');if(m&&correo)cuenta(correo,clave,nombre,m[1]);ST(4,c.mensaje||'¡Huella registrada!','ok');fin(true);}
+  if(c.estado=='error'){ST(0,c.mensaje||'No se pudo registrar. Intenta de nuevo.','er');fin(false);}});
+ enr.t=setTimeout(()=>{if(enr){enr.ref.update({estado:'cancelado'});ST(0,'El lector no respondió. Revisa que esté encendido y con Wi‑Fi.','er');fin(false);}},90000);}
+function fin(ok){if(!enr)return;clearTimeout(enr.t);enr.ref.off();enr=null;$('dbtn').textContent='Cerrar';if(ok){$('unom')&&($('unom').value='');setTimeout(()=>$('dlg').open&&$('dlg').close(),2000);}}
+function cerrarEnrol(){if(enr){enr.ref.update({estado:'cancelado'});fin(false);}$('dlg').close();}
+$('dlg').addEventListener('cancel',e=>{e.preventDefault();cerrarEnrol();});
+
+// ===== Inasistencias =====
+function saveCfg(){drawAsi(1);if(LV(me.rol)>=1)db.ref('config').set(cfg);}
+function drawAsi(f){if(!f&&document.activeElement&&document.activeElement.matches('#asi input,#asi select'))return;
+ const acc={};evs().forEach(e=>{if(e.tipo=='entrada')acc[String(e.id)]=(acc[String(e.id)]||0)+e.retrasoMin;});
+ const U=cfg.tipo,rows=Object.entries(S.usuarios).filter(([,u])=>u.rol=='estudiante').map(([id,u])=>{const m=acc[id]||0,f2=Math.floor(m/60),p=f2/cfg.horas*100,s=p>=U?['Pérdida','er']:p>=U-2?['Alerta','wa']:['Normal','ok'];
+  return `<tr><td>${esc(u.nombre)}</td><td>${m} min</td><td>${f2}</td><td>${p.toFixed(1)}%<div class="bar"><i style="width:${Math.min(100,p/U*100)}%;background:var(--${s[1]})"></i></div></td><td class="${s[1]}">${s[0]}</td></tr>`;}).join('');
+ $('asi').innerHTML=`<div class="card"><div class="row"><label>Tipo de materia <select onchange="cfg.tipo=+this.value;saveCfg()"><option value="10" ${U==10?'selected':''}>Práctica (10%)</option><option value="20" ${U==20?'selected':''}>Teórica (20%)</option></select></label>
+ <label>Horas del semestre <input type="number" value="${cfg.horas}" min="1" style="width:90px" onchange="cfg.horas=+this.value||48;saveCfg()"></label></div>
+ <p class="l">60 min acumulados de retraso = 1 falla. Alerta a 2 puntos del umbral (8% práctica / 18% teórica).</p>
+ <div class="scroll"><table><tr><th>Estudiante</th><th>Minutos perdidos</th><th>Fallas</th><th>% inasistencia</th><th>Estado</th></tr>${rows}</table></div></div>`;}
+</script></body></html>
