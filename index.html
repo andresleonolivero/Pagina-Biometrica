@@ -63,7 +63,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <nav id="nav"></nav></div></header>
 <div class="strip"><span id="ses"></span></div>
 <main>
-<section id="mi" hidden></section><section id="res" hidden></section><section id="per" hidden></section><section id="asi" hidden></section>
+<section id="mi" hidden></section><section id="res" hidden></section><section id="per" hidden></section><section id="asi" hidden></section><section id="his" hidden></section><section id="cor" hidden></section>
 </main></div>
 
 <dialog id="dlg"><div id="hand" class="hand">🖐️</div><h2 id="dnom"></h2><div class="steps"><i></i><i></i><i></i></div><p id="dmsg" style="min-height:22px"></p><button class="gh" id="dbtn" onclick="cerrarEnrol()">Cancelar</button></dialog>
@@ -77,6 +77,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <dialog id="dlgp"><h2>✅ Persona registrada</h2><p style="margin:0"><b id="pn"></b><br><span class="l" id="pc"></span></p><p class="l" style="margin:12px 0 0">Contraseña asignada</p>
 <div id="pk" style="font-size:22px;font-weight:700;padding:10px;border:1px dashed var(--g);border-radius:10px;margin:6px 0;user-select:all;word-break:break-all"></div><p id="pm" class="l"></p>
 <div class="row" style="justify-content:center"><button class="au" onclick="navigator.clipboard&&navigator.clipboard.writeText($('pk').textContent);toast('Contraseña copiada')">Copiar</button><button class="gh" onclick="$('dlgp').close()">Cerrar</button></div></dialog>
+<dialog id="dlgj"><h2 id="jt"></h2><p class="l" id="jn"></p>
+<select id="jtipo"><option>Incapacidad médica</option><option>Calamidad doméstica</option><option>Permiso académico oficial</option><option>Fuerza mayor</option></select>
+<input id="jmin" type="number" step="1" placeholder="Minutos"><input id="jmot" placeholder="Motivo o soporte (obligatorio)"><p class="l" id="jh"></p>
+<div class="row" style="justify-content:center"><button class="au" onclick="guardarJust()">Guardar</button><button class="gh" onclick="$('dlgj').close()">Cancelar</button></div></dialog>
+<dialog id="dlgs"><h2>🚻 Salida / regreso del aula</h2><p class="l">Úsalo si el estudiante no pudo registrarlo con la huella.</p>
+<input id="sn" list="estl" placeholder="Nombre del estudiante"><select id="sa"><option value="salida">Salida al baño / emergencia</option><option value="regreso">Regreso al aula</option></select>
+<div class="row" style="justify-content:center"><button class="au" onclick="salidaManual()">Registrar</button><button class="gh" onclick="$('dlgs').close()">Cancelar</button></div></dialog>
 <div id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-auth-compat.min.js"></script>
@@ -87,13 +94,17 @@ const firebaseConfig={apiKey:"AIzaSyAn8_oYjXP7wUx7wL0k6AVpdNiFccp3Sac",authDomai
 const ROLES={rector:{n:'Rector',lv:5,c:'#b8860b'},vicerrector:{n:'Vicerrector',lv:4,c:'#8e44ad'},decano:{n:'Decano',lv:3,c:'#2c7be5'},director:{n:'Director de programa',lv:2,c:'#0a9396'},docente:{n:'Docente',lv:1,c:'#2a9d6f'},estudiante:{n:'Estudiante',lv:0,c:'#6c7a89'}};
 const RECTOR_INICIAL='elonandresleon6@gmail.com';  // Rector por defecto: administra todo el sistema
 const LV=r=>ROLES[r]?ROLES[r].lv:-1,TOL=5;
-let S={usuarios:{},eventos:{},sesion:null},me={nombre:'',rol:'docente'},db,enr=null,seen=null,N=[],unread=0,cfg={tipo:10,horas:48};
+// Parámetros institucionales (configurables desde la pestaña Inasistencias)
+const DEF={tipo:10,horas:48,tolLlegada:5,tolBano:20,minFalla:60,margen:2},T_SAL=['salida','salida_temporal'],T_REG=['regreso','retorno'];
+let DS=[],SAL=[],INIS=[],alSt={},alReady=false,jctx={},hf={q:'',t:''};
+let S={usuarios:{},eventos:{},sesion:null,descanso:null,just:{},ajustes:{},cortes:{},audit:{}},me={nombre:'',rol:'docente'},db,enr=null,seen=null,N=[],unread=0,cfg=Object.assign({},DEF);
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=t=>new Date(t).toLocaleString('es-CO',{dateStyle:'short',timeStyle:'short'});
 const toast=m=>{const d=document.createElement('div');d.textContent=m;$('toast').append(d);setTimeout(()=>d.remove(),4000)};
 const rolTag=r=>ROLES[r]?`<span class="tag" style="color:${ROLES[r].c}">${ROLES[r].n}</span>`:'';
-const evs=()=>Object.values(S.eventos).sort((a,b)=>b.ts-a.ts);
+const evsAll=()=>Object.entries(S.eventos).map(([k,e])=>({...e,_k:k})).sort((a,b)=>b.ts-a.ts);
+const evs=()=>evsAll().filter(e=>!e.anulado);   // los registros anulados quedan en el historial pero no cuentan
 
 {const d=new Date().toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',year:'numeric'});$('fecha').textContent=d.charAt(0).toUpperCase()+d.slice(1);}
 firebase.initializeApp(firebaseConfig);db=firebase.database();
@@ -132,15 +143,21 @@ async function cambiarClave(){const u=firebase.auth().currentUser,n=$('cp1').val
  catch(x){$('cpe').textContent=/wrong-password|invalid-credential/.test(x.code)?'La contraseña actual es incorrecta.':'No se pudo aplicar el cambio. Intenta de nuevo.';}}
 function start(){$('login').hidden=true;$('app').hidden=false;$('tools').hidden=false;$('yo').innerHTML=`${esc(me.nombre)} · ${ROLES[me.rol].n}`;
  db.ref('eliminados/'+emailKey(me.correo)).on('value',s=>{if(s.exists()&&me.rol!='rector')expulsar();});   // si la borran con la sesión abierta, sale al instante
- buildNav();db.ref('config').on('value',s=>{if(s.val())cfg=s.val();draw();});
+ buildNav();db.ref('config').on('value',s=>{if(s.val())cfg=Object.assign({},DEF,s.val());draw();});
  db.ref('usuarios').on('value',s=>{S.usuarios=s.val()||{};draw();});
  db.ref('sesion').on('value',s=>{S.sesion=s.val();draw();});
+ db.ref('descanso').on('value',s=>{S.descanso=s.val();draw();});
+ (LV(me.rol)>=1?db.ref('justificaciones'):db.ref('justificaciones').orderByChild('id').equalTo(String(me.id))).on('value',s=>{S.just=s.val()||{};draw();});
+ db.ref('ajustes').on('value',s=>{S.ajustes=s.val()||{};draw();});
+ if(LV(me.rol)>=1){db.ref('cortes').on('value',s=>{S.cortes=s.val()||{};draw();});db.ref('auditoria').limitToLast(100).on('value',s=>{S.audit=s.val()||{};draw();});}
+ setTimeout(()=>{const r=chequeaAlertas();alReady=true;if(r&&r.a+r.l)avisar(`⚠️ Alertas de inasistencia: ${r.l} en pérdida y ${r.a} próximos al umbral`);},4000);
+ setInterval(()=>{if(SAL.some(x=>x.abierta)||(S.descanso&&S.descanso.activo))draw();},30000);   // refresca los contadores en vivo
  db.ref('eventos').limitToLast(500).on('value',s=>{S.eventos=s.val()||{};const k=Object.keys(S.eventos);
   if(seen===null)seen=new Set(k);else k.forEach(x=>{if(!seen.has(x)){seen.add(x);notificar(S.eventos[x]);}});draw();});}
 const T={rector:'Despacho del Rector · vista institucional',vicerrector:'Vicerrectoría · vista académica',decano:'Decanatura · vista de facultad',director:'Dirección de programa',docente:'Portal docente',estudiante:'Portal estudiantil'};
-function buildNav(){const L=LV(me.rol),tabs=L==0?[['mi','Mi asistencia']]:[['res',L==1?'Mi clase':L==2?'Mi programa':L==3?'Mi facultad':'Institucional'],['per',L==1?'Mis estudiantes':'Personas y jerarquía'],['asi','Inasistencias']];
+function buildNav(){const L=LV(me.rol),tabs=L==0?[['mi','Mi asistencia']]:[['res',L==1?'Mi clase':L==2?'Mi programa':L==3?'Mi facultad':'Institucional'],['per',L==1?'Mis estudiantes':'Personas y jerarquía'],['asi','Inasistencias'],['his','Historial'],['cor','Cortes y firma']];
  $('nav').innerHTML=tabs.map((t,i)=>`<button data-t="${t[0]}" class="${i?'':'on'}">${t[1]}</button>`).join('');
- const show=t=>['mi','res','per','asi'].forEach(x=>$(x).hidden=x!=t);show(tabs[0][0]);
+ const show=t=>['mi','res','per','asi','his','cor'].forEach(x=>$(x).hidden=x!=t);show(tabs[0][0]);
  $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('nav').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x==b));show(b.dataset.t);});
  document.querySelector('header').style.borderBottomColor=ROLES[me.rol].c;$('sub').textContent=T[me.rol];}
 
@@ -149,11 +166,15 @@ async function uidDe(correo){if(!correo)return null;const p=(await db.ref('panel
 db.ref('.info/connected').on('value',s=>$('off').classList.toggle('on',s.val()===false));
 
 // ===== Notificaciones =====
-function notificar(e){if(me.rol=='estudiante'&&!/sesion/.test(e.tipo)&&String(e.id)!=String(me.id))return;const n=e.nombre||'Alguien';let t;
+function notificar(e){if(me.rol=='estudiante'&&!/sesion|descanso/.test(e.tipo)&&String(e.id)!=String(me.id))return;const n=e.nombre||'Alguien';let t;
  if(e.tipo=='denegado')t=`⛔ Acceso denegado: ${n} (${e.motivo||'sin motivo'})`;
  else if(e.tipo=='entrada')t=e.manual?`✍️ Ingreso manual de ${n} · ${e.motivo||''} · autorizó ${e.autorizadoPor||''}`:e.retrasoMin>0?`⏰ ${n} llegó ${e.retrasoMin} min tarde`:`✅ ${n} ingresó a tiempo`;
  else if(e.tipo=='inicio_sesion')t=`🔓 ${n} abrió la sesión de clase`;
  else if(e.tipo=='cierre_sesion')t=`🔒 ${n} cerró la sesión de clase`;
+ else if(e.tipo=='inicio_descanso')t=`☕ ${n} habilitó un descanso (sin penalización)`;
+ else if(e.tipo=='fin_descanso')t=`▶ Terminó el descanso (${e.duracionMin||0} min)`;
+ else if(T_SAL.includes(e.tipo))t=`🚻 ${n} salió del aula`;
+ else if(T_REG.includes(e.tipo))t=`↩ ${n} regresó al aula`;
  else t=`🏛️ ${ROLES[e.rol]?ROLES[e.rol].n:'Directivo'} ${n} ingresó`;
  N.unshift({t,ts:e.ts||Date.now()});N=N.slice(0,40);unread++;toast(t);bd();
  if(window.Notification&&Notification.permission=='granted')new Notification('Universidad de Pamplona',{body:t});}
@@ -164,24 +185,24 @@ function bell(){const o=$('nb');o.hidden=!o.hidden;if(!o.hidden){unread=0;bd();
 
 // ===== Dibujo =====
 const pres=()=>{const i=S.sesion&&S.sesion.activa?S.sesion.inicio:0;return new Set(i?evs().filter(e=>e.tipo=='entrada'&&e.ts>=i).map(e=>String(e.id)):[]);};
-const evTxt=e=>({entrada:e.retrasoMin>0?`Entrada · ${e.retrasoMin} min tarde`:'Entrada a tiempo',inicio_sesion:'Abrió sesión',cierre_sesion:'Cerró sesión',denegado:'⛔ Denegado: '+esc(e.motivo||''),acceso:'Acceso directivo'}[e.tipo]||esc(e.tipo))+(e.manual?' ✍️ manual':'');
-function draw(){if(LV(me.rol)==0)return drawMi();const se=S.sesion,ev=evs(),P=pres(),est=Object.values(S.usuarios).filter(u=>u.rol=='estudiante').length;
- $('ses').innerHTML=se&&se.activa?`● Sesión abierta · ${esc(se.docente||'')}`:'○ Sin sesión';
+const evTxt=e=>({entrada:e.retrasoMin>0?`Entrada · ${e.retrasoMin} min tarde`:'Entrada a tiempo',inicio_sesion:'Abrió sesión',cierre_sesion:'Cerró sesión',denegado:'⛔ Denegado: '+esc(e.motivo||''),acceso:'Acceso directivo',inicio_descanso:'☕ Inicio de descanso',fin_descanso:'▶ Fin de descanso',salida:'🚻 Salida temporal',salida_temporal:'🚻 Salida temporal',regreso:'↩ Regreso al aula',retorno:'↩ Regreso al aula'}[e.tipo]||esc(e.tipo))+(e.manual?' ✍️ manual':'');
+function draw(){if(LV(me.rol)==0)return drawMi();recalc();chequeaAlertas();const se=S.sesion,ev=evs(),P=pres(),est=Object.values(S.usuarios).filter(u=>u.rol=='estudiante').length;
+ $('ses').innerHTML=sesTxt(se);
  const tarde=ev.filter(e=>e.tipo=='entrada'&&se&&se.activa&&e.ts>=se.inicio&&e.retrasoMin>0).length;
  $('res').innerHTML=`<div class="feat"><div class="fr"><b>${P.size}/${est}</b><span>Estudiantes<br>presentes<small>${se&&se.activa?'Clase en curso · '+esc(se.docente||''):'Sin clase abierta'}</small></span></div>
  <div class="fp">${Object.entries(ROLES).sort((a,b)=>b[1].lv-a[1].lv).map(([k,R])=>`<span style="--c:${R.c}">${R.n} · <b>${Object.values(S.usuarios).filter(u=>u.rol==k).length}</b></span>`).join('')}</div></div>
  <div class="grid"><div class="card"><div class="k wa">${tarde}</div><div class="l">Llegaron tarde</div></div><div class="card"><div class="k">${Math.max(0,est-P.size)}</div><div class="l">Aún sin ingresar</div></div>
  <div class="card"><div class="k">${Object.keys(S.usuarios).length}</div><div class="l">Personas registradas</div></div></div>
- ${LV(me.rol)>=1?`<button class="au" style="margin-bottom:14px" onclick="abrirManual()">✍️ Ingreso manual de estudiante</button>`:''}
+ ${LV(me.rol)>=1?`<div class="row" style="margin-bottom:14px"><button class="au" onclick="abrirManual()">✍️ Ingreso manual de estudiante</button>${descBtn()}<button class="au" onclick="abrirSalida()">🚻 Salida / regreso</button></div>`:''}${fueraHtml()}
  <div class="card"><h2>Actividad reciente</h2><div class="scroll"><table><tr><th>Fecha</th><th>Persona</th><th>Rol</th><th>Evento</th></tr>${ev.slice(0,12).map(e=>`<tr><td>${fmt(e.ts)}</td><td>${esc(e.nombre)}</td><td>${rolTag(e.rol)}</td><td>${evTxt(e)}</td></tr>`).join('')}</table></div></div>`;
- drawPer();drawAsi();}
-function drawMi(){const se=S.sesion,mine=evs().filter(e=>e.tipo=='entrada'&&String(e.id)==String(me.id)),m=mine.reduce((a,e)=>a+e.retrasoMin,0),f=Math.floor(m/60),p=f/cfg.horas*100,U=cfg.tipo,s=p>=U?['Pérdida de la materia','er']:p>=U-2?['En alerta','wa']:['Normal','ok'];
- $('ses').innerHTML=se&&se.activa?`● Sesión abierta · ${esc(se.docente||'')}`:'○ Sin sesión';
+ drawPer();drawAsi();drawHis();drawCor();}
+function drawMi(){recalc();const se=S.sesion,mine=evs().filter(e=>e.tipo=='entrada'&&String(e.id)==String(me.id)),P0=perdidos(me.id),m=P0.total,f=Math.floor(m/cfg.minFalla),p=f/cfg.horas*100,U=cfg.tipo,s=p>=U?['Pérdida de la materia','er']:p>=U-cfg.margen?['En alerta','wa']:['Normal','ok'];
+ $('ses').innerHTML=sesTxt(se);
  const ya=se&&se.activa&&mine.some(e=>e.ts>=se.inicio);
  $('mi').innerHTML=`${me.id?'':'<div class="card" style="border-color:var(--wa)">⚠️ Aún no tienes tu huella registrada en el lector del salón. Pide a tu docente o director que te registre; cuando lo haga, tus datos aparecerán aquí.</div>'}<div class="card"><h2>Hola, ${esc(me.nombre)} 👋</h2><p style="margin:0">${se&&se.activa?(ya?'✅ Tu entrada a la clase actual ya quedó registrada.':'⏳ Hay clase en curso y aún no registras tu entrada. Pon tu huella en el lector.'):'No hay una clase abierta en este momento.'}</p></div>
  <div class="grid"><div class="card"><div class="k">${mine.length}</div><div class="l">Entradas registradas</div></div><div class="card"><div class="k wa">${m} min</div><div class="l">Retraso acumulado</div></div><div class="card"><div class="k">${f}</div><div class="l">Fallas</div></div>
  <div class="card"><div class="k ${s[1]}">${p.toFixed(1)}%</div><div class="l">Inasistencia · límite ${U}%</div><div class="bar"><i style="width:${Math.min(100,p/U*100)}%;background:var(--${s[1]})"></i></div></div></div>
- <div class="card" style="margin-top:12px"><h2>Estado: <span class="${s[1]}">${s[0]}</span></h2><div class="scroll"><table><tr><th>Fecha</th><th>Registro</th></tr>${mine.slice(0,30).map(e=>`<tr><td>${fmt(e.ts)}</td><td>${evTxt(e)}</td></tr>`).join('')||'<tr><td colspan="2" class="l">Aún no tienes entradas registradas.</td></tr>'}</table></div></div>`;}
+ <div class="card" style="margin-top:12px"><h2>Estado: <span class="${s[1]}">${s[0]}</span></h2><p class="l">${detalleTxt(P0)}</p><div class="scroll"><table><tr><th>Fecha</th><th>Registro</th></tr>${mine.slice(0,30).map(e=>`<tr><td>${fmt(e.ts)}</td><td>${evTxt(e)}</td></tr>`).join('')||'<tr><td colspan="2" class="l">Aún no tienes entradas registradas.</td></tr>'}</table></div></div>${misSalidasHtml()}`;}
 function drawPer(){if(document.activeElement&&document.activeElement.matches('#per input,#per select'))return;
  const mine=Object.keys(ROLES).filter(r=>LV(r)<LV(me.rol));
  const form=mine.length?`<div class="card"><h2>Registrar persona con huella</h2><div class="row"><input id="unom" placeholder="Nombre completo" style="flex:1;min-width:170px"><input id="ucor" type="email" placeholder="nombre.apellido@unipamplona.edu.co" style="flex:1;min-width:190px"><input id="ucl" placeholder="Contraseña (mínimo 6)" style="flex:1;min-width:170px"><select id="urol">${mine.map(r=>`<option value="${r}">${ROLES[r].n}</option>`).join('')}</select><button class="pri" onclick="addUsr()">Registrar huella</button></div>
@@ -222,8 +243,8 @@ function manual(){const nom=$('mn').value.replace(/["\\]/g,'').trim();if(!nom)re
  else{const c0=$('mc').value.trim();if(c0&&!esU(c0))return toast(MSGU);if(!confirm('«'+nom+'» no está en la lista. ¿Agregarlo como estudiante nuevo?'))return;id='m'+Date.now().toString(36);db.ref('usuarios/'+id).set({nombre:nom,rol:'estudiante',manual:true,correo:c0.toLowerCase()});if(c0)db.ref('eliminados/'+emailKey(c0)).remove();}
  if(pres().has(id))return toast('Ya registró entrada en esta sesión');
  const min=Math.floor((Date.now()-S.sesion.inicio)/60000);
- db.ref('eventos').push({id,nombre,rol:'estudiante',tipo:'entrada',retrasoMin:min>TOL?min:0,manual:true,motivo:$('mm').value,autorizadoPor:me.nombre,ts:Date.now()});
- $('dlgm').close();}
+ db.ref('eventos').push({id,nombre,rol:'estudiante',tipo:'entrada',retrasoMin:min>cfg.tolLlegada?min:0,manual:true,motivo:$('mm').value,autorizadoPor:me.nombre,ts:Date.now()});
+ aud('Ingreso manual',nombre+' · '+$('mm').value);$('dlgm').close();}
 
 // ===== Registro de huella (protocolo con el ESP32: /registro) =====
 const MAP={paso1:1,quitar:2,paso2:3};
@@ -240,12 +261,151 @@ $('dlg').addEventListener('cancel',e=>{e.preventDefault();cerrarEnrol();});
 
 // ===== Inasistencias =====
 function saveCfg(){drawAsi(1);if(LV(me.rol)>=1)db.ref('config').set(cfg);}
+// ===== Cálculo de tiempos: descansos, salidas al baño, retrasos efectivos =====
+const fmtS=t=>new Date(t).toLocaleString('es-CO',{dateStyle:'short',timeStyle:'medium'});
+const sesTxt=se=>(se&&se.activa?`● Sesión abierta · ${esc(se.docente||'')}`:'○ Sin sesión')+(S.descanso&&S.descanso.activo?' · ☕ Descanso en curso (sin penalización)':'');
+const sesIni=ts=>{let b=0;INIS.forEach(x=>{if(x<=ts&&x>b)b=x;});return b;};
+const ovD=(a,b)=>Math.round(DS.reduce((t,d)=>t+Math.max(0,Math.min(d.fin,b)-Math.max(d.ini,a)),0)/60000);   // minutos de descanso entre a y b
+// retraso efectivo: se descuentan los descansos oficiales y se aplica la tolerancia de llegada configurada
+const retEf=e=>{const r=+e.retrasoMin||0;if(r<=0)return 0;const a=sesIni(e.ts),v=a?Math.max(0,r-ovD(a,e.ts)):r;return v>cfg.tolLlegada?v:0;};
+function recalc(){
+ const A=evsAll().slice().sort((a,b)=>a.ts-b.ts).filter(e=>!e.anulado);
+ DS=[];let di=null;
+ A.forEach(e=>{if(e.tipo=='inicio_descanso')di=e.ts;else if(e.tipo=='fin_descanso'&&di){DS.push({ini:di,fin:e.ts});di=null;}});
+ if(di)DS.push({ini:di,fin:Date.now(),abierto:true});
+ INIS=A.filter(e=>e.tipo=='inicio_sesion').map(e=>e.ts);
+ if(S.sesion&&S.sesion.activa&&S.sesion.inicio&&!INIS.includes(S.sesion.inicio))INIS.push(S.sesion.inicio);
+ SAL=[];const open={};
+ const cierra=(o,fin,abierta,sinReg)=>{const m=Math.max(0,Math.floor((fin-o.ini)/60000)-ovD(o.ini,fin));SAL.push({id:o.id,nombre:o.nombre,ini:o.ini,fin,min:m,exceso:Math.max(0,m-cfg.tolBano),abierta,sinReg,k:o.k});};
+ A.forEach(e=>{const k=String(e.id);
+  if(T_SAL.includes(e.tipo)){if(open[k])cierra(open[k],e.ts,false,true);open[k]={id:e.id,nombre:e.nombre,ini:e.ts,k:e._k};}
+  else if(T_REG.includes(e.tipo)){if(open[k]){cierra(open[k],e.ts,false,false);delete open[k];}}
+  else if(e.tipo=='cierre_sesion'){Object.keys(open).forEach(x=>{cierra(open[x],e.ts,false,true);delete open[x];});}});   // salió y no regresó: se cuenta hasta el cierre
+ Object.values(open).forEach(o=>cierra(o,Date.now(),true,false));}
+// minutos perdidos de un estudiante = retrasos + exceso en baño − justificados ± ajustes
+function perdidos(id){id=String(id);let ret=0,exc=0,jus=0,aju=0;
+ evs().forEach(e=>{if(e.tipo=='entrada'&&String(e.id)==id)ret+=retEf(e);});
+ SAL.forEach(x=>{if(String(x.id)==id)exc+=x.exceso;});
+ Object.values(S.just||{}).forEach(j=>{if(String(j.id)==id)jus+=+j.minutos||0;});
+ Object.values(S.ajustes||{}).forEach(j=>{if(String(j.id)==id)aju+=+j.minutos||0;});
+ return {ret,exc,jus,aju,total:Math.max(0,ret+exc-jus+aju)};}
+const detalleTxt=P=>`Retraso ${P.ret} + baño fuera de tolerancia ${P.exc} − justificado ${P.jus} ${P.aju<0?'−':'+'} ajuste ${Math.abs(P.aju)} = ${P.total} min`;
+function filasActuales(){recalc();return Object.entries(S.usuarios).filter(([,u])=>u.rol=='estudiante').map(([id,u])=>{const P=perdidos(id),f=Math.floor(P.total/cfg.minFalla),p=f/cfg.horas*100;
+ return {id,nombre:u.nombre,correo:u.correo||'',prog:cfg.horas*60,min:P.total,aula:Math.max(0,cfg.horas*60-P.total),ret:P.ret,exc:P.exc,jus:P.jus,aju:P.aju,fallas:f,pct:+p.toFixed(2),estado:p>=cfg.tipo?'Pérdida':p>=cfg.tipo-cfg.margen?'Alerta':'Normal'};});}
+
+// ===== Auditoría y alertas preventivas =====
+function aud(accion,detalle){try{db.ref('auditoria').push({accion,detalle:String(detalle||''),por:me.nombre,rol:me.rol,ts:Date.now()});}catch(x){}}
+function avisar(t){N.unshift({t,ts:Date.now()});N=N.slice(0,40);unread++;toast(t);bd();if(window.Notification&&Notification.permission=='granted')new Notification('Universidad de Pamplona',{body:t});}
+function chequeaAlertas(){if(LV(me.rol)<1)return null;const U=cfg.tipo;let a=0,l=0;
+ Object.entries(S.usuarios).filter(([,u])=>u.rol=='estudiante').forEach(([id,u])=>{const P=perdidos(id),p=Math.floor(P.total/cfg.minFalla)/cfg.horas*100,st=p>=U?2:p>=U-cfg.margen?1:0;
+  if(st==2)l++;else if(st==1)a++;
+  if(alReady&&st>(alSt[id]||0))avisar(st==2?`🚨 ${u.nombre} alcanzó el umbral de pérdida (${p.toFixed(1)}% ≥ ${U}%)`:`⚠️ ${u.nombre} está próximo al umbral de pérdida (${p.toFixed(1)}%; alerta desde ${(U-cfg.margen).toFixed(1)}%)`);
+  alSt[id]=st;});
+ return {a,l};}
+
+// ===== Descanso oficial docente =====
+const descBtn=()=>S.descanso&&S.descanso.activo?'<button class="pri" onclick="terminarDescanso()">▶ Terminar descanso</button>':'<button class="au" onclick="iniciarDescanso()">☕ Iniciar descanso</button>';
+function iniciarDescanso(){if(!S.sesion||!S.sesion.activa)return toast('Primero el docente debe abrir la sesión de clase');if(S.descanso&&S.descanso.activo)return;
+ const ts=Date.now();db.ref('descanso').set({activo:true,inicio:ts,por:me.nombre});
+ db.ref('eventos').push({nombre:me.nombre,rol:me.rol,tipo:'inicio_descanso',ts});aud('Descanso iniciado','Pausa colectiva: los contadores se congelan y no hay penalización');}
+function terminarDescanso(){if(!S.descanso||!S.descanso.activo)return;const ts=Date.now(),min=Math.round((ts-S.descanso.inicio)/60000);
+ db.ref('descanso').set({activo:false});db.ref('eventos').push({nombre:me.nombre,rol:me.rol,tipo:'fin_descanso',duracionMin:min,ts});aud('Descanso terminado',min+' min');}
+
+// ===== Salidas al baño / emergencia =====
+function fueraHtml(){const o=SAL.filter(x=>x.abierta);if(!o.length)return '';
+ return `<div class="card"><h2>🚻 Fuera del aula ahora</h2><div class="scroll"><table><tr><th>Estudiante</th><th>Salió</th><th>Tiempo</th><th>Tolerancia (${cfg.tolBano} min)</th><th></th></tr>${o.map(x=>{const r=cfg.tolBano-x.min;return `<tr><td>${esc(x.nombre)}</td><td>${fmt(x.ini)}</td><td>${x.min} min</td><td class="${r>=0?'ok':'er'}">${r>=0?'quedan '+r+' min':'excedida por '+(-r)+' min'}</td><td>${LV(me.rol)>=1?`<button onclick="regresoDe('${esc(String(x.id))}')">↩ Registrar regreso</button>`:''}</td></tr>`;}).join('')}</table></div></div>`;}
+function mov(id,nombre,tipo){db.ref('eventos').push({id,nombre,rol:'estudiante',tipo,manual:true,autorizadoPor:me.nombre,ts:Date.now()});aud(tipo=='salida'?'Salida manual':'Regreso manual',nombre);}
+function regresoDe(id){const u=S.usuarios[id],x=SAL.find(z=>z.abierta&&String(z.id)==String(id));mov(id,(u&&u.nombre)||(x&&x.nombre)||'Estudiante','regreso');}
+function abrirSalida(){if(!S.sesion||!S.sesion.activa)return toast('Primero el docente debe abrir la sesión de clase');$('sn').value='';$('dlgs').showModal();}
+function salidaManual(){const nom=$('sn').value.replace(/["\\]/g,'').trim().toLowerCase(),acc=$('sa').value;if(!nom)return;
+ const id=Object.keys(S.usuarios).find(k=>S.usuarios[k].rol=='estudiante'&&S.usuarios[k].nombre.toLowerCase()==nom);if(!id)return toast('Ese estudiante no está en la lista');
+ const abierta=SAL.some(z=>z.abierta&&String(z.id)==String(id));
+ if(acc=='salida'&&abierta)return toast('Ya está fuera del aula');if(acc=='regreso'&&!abierta)return toast('No tiene una salida abierta');
+ mov(id,S.usuarios[id].nombre,acc);$('dlgs').close();}
+function misSalidasHtml(){const L=SAL.filter(x=>String(x.id)==String(me.id)).sort((a,b)=>b.ini-a.ini);
+ return `<div class="card" style="margin-top:12px"><h2>Mis salidas al baño</h2><p class="l">Tolerancia: ${cfg.tolBano} min. Lo que exceda ese tiempo se suma a tu ausencia.</p><div class="scroll"><table><tr><th>Salida</th><th>Duración</th><th>Estado</th></tr>${L.slice(0,20).map(x=>`<tr><td>${fmt(x.ini)}</td><td>${x.min} min</td><td class="${x.exceso?'er':'ok'}">${x.abierta?'En curso':x.exceso?'Excedió '+x.exceso+' min':'Justificada'}${x.sinReg?' · sin regreso registrado':''}</td></tr>`).join('')||'<tr><td colspan="3" class="l">Sin salidas registradas.</td></tr>'}</table></div></div>`;}
+
+// ===== Justificación de faltas y ajuste manual (con auditoría) =====
+function abrirJust(id,modo){const u=S.usuarios[id];if(!u)return;jctx={id,modo};
+ $('jt').textContent=modo=='just'?'📎 Justificar faltas':'✎ Ajuste manual justificado';$('jn').textContent=u.nombre;
+ $('jtipo').hidden=modo!='just';$('jmin').value='';$('jmot').value='';
+ $('jh').textContent=modo=='just'?'Los minutos justificados se descartan del cálculo de inasistencia (incapacidad, calamidad, permiso oficial).':'Positivo: suma minutos ausentes. Negativo: reclasifica o resta minutos. Queda registrado en la auditoría.';
+ $('dlgj').showModal();}
+async function guardarJust(){const u=S.usuarios[jctx.id];if(!u)return;const mot=$('jmot').value.replace(/["\\]/g,'').trim(),mn=Math.round(+$('jmin').value);
+ if(!mn)return toast('Escribe los minutos');if(mot.length<3)return toast('El motivo es obligatorio: queda en la auditoría');
+ try{
+  if(jctx.modo=='just'){if(mn<0)return toast('Los minutos justificados deben ser positivos');
+   await db.ref('justificaciones').push({id:String(jctx.id),nombre:u.nombre,tipo:$('jtipo').value,minutos:mn,motivo:mot,por:me.nombre,ts:Date.now()});aud('Falta justificada',`${u.nombre} · ${$('jtipo').value} · ${mn} min · ${mot}`);}
+  else{await db.ref('ajustes').push({id:String(jctx.id),nombre:u.nombre,minutos:mn,motivo:mot,por:me.nombre,ts:Date.now()});aud('Ajuste manual',`${u.nombre} · ${mn>0?'+':''}${mn} min · ${mot}`);}
+  $('dlgj').close();toast('Registrado y auditado');
+ }catch(x){toast('No se pudo guardar: revisa tu conexión o las reglas de Firebase.');console.warn('just',x);}}
+function anular(k){const e=S.eventos[k];if(!e||LV(me.rol)<1)return;
+ const mot=(prompt('Motivo de la anulación (obligatorio, queda en la auditoría):')||'').replace(/["\\]/g,'').trim();if(mot.length<3)return toast('Anulación cancelada: falta el motivo');
+ db.ref('eventos/'+k+'/anulado').set({por:me.nombre,motivo:mot,ts:Date.now()}).then(()=>{aud('Registro anulado',`${e.nombre||''} · ${e.tipo} · ${fmtS(e.ts)} · ${mot}`);toast('Registro anulado (se conserva en el historial)');}).catch(()=>toast('No se pudo anular.'));}
+
+// ===== Pestaña Inasistencias (parámetros, detalle, exportación) =====
 function drawAsi(f){if(!f&&document.activeElement&&document.activeElement.matches('#asi input,#asi select'))return;
- const acc={};evs().forEach(e=>{if(e.tipo=='entrada')acc[String(e.id)]=(acc[String(e.id)]||0)+e.retrasoMin;});
- const U=cfg.tipo,rows=Object.entries(S.usuarios).filter(([,u])=>u.rol=='estudiante').map(([id,u])=>{const m=acc[id]||0,f2=Math.floor(m/60),p=f2/cfg.horas*100,s=p>=U?['Pérdida','er']:p>=U-2?['Alerta','wa']:['Normal','ok'];
-  return `<tr><td>${esc(u.nombre)}</td><td>${m} min</td><td>${f2}</td><td>${p.toFixed(1)}%<div class="bar"><i style="width:${Math.min(100,p/U*100)}%;background:var(--${s[1]})"></i></div></td><td class="${s[1]}">${s[0]}</td></tr>`;}).join('');
- $('asi').innerHTML=`<div class="card"><div class="row"><label>Tipo de materia <select onchange="cfg.tipo=+this.value;saveCfg()"><option value="10" ${U==10?'selected':''}>Práctica (10%)</option><option value="20" ${U==20?'selected':''}>Teórica (20%)</option></select></label>
+ recalc();
+ const U=cfg.tipo,rows=Object.entries(S.usuarios).filter(([,u])=>u.rol=='estudiante').map(([id,u])=>{const P=perdidos(id),m=P.total,f2=Math.floor(m/cfg.minFalla),p=f2/cfg.horas*100,s=p>=U?['Pérdida','er']:p>=U-cfg.margen?['Alerta','wa']:['Normal','ok'];
+  return `<tr><td>${esc(u.nombre)}</td><td>${m} min</td><td>${f2}</td><td>${p.toFixed(1)}%<div class="bar"><i style="width:${Math.min(100,p/U*100)}%;background:var(--${s[1]})"></i></div></td><td class="${s[1]}">${s[0]}</td><td class="l">${detalleTxt(P)}</td><td>${Math.max(0,cfg.horas*60-m)} min</td><td><button onclick="abrirJust('${esc(id)}','just')">📎 Justificar</button> <button onclick="abrirJust('${esc(id)}','aju')">✎ Ajustar</button></td></tr>`;}).join('');
+ $('asi').innerHTML=`<div class="card"><div class="row"><label>Tipo de materia <select onchange="cfg.tipo=+this.value;saveCfg()"><option value="10" ${U==10?'selected':''}>Práctica (10%)</option><option value="20" ${U==20?'selected':''}>Teórica (20%)</option>${U!=10&&U!=20?`<option value="${U}" selected>Personalizado (${U}%)</option>`:''}</select></label>
+ <label>Umbral de pérdida (%) <input type="number" value="${U}" min="1" max="100" step="0.5" style="width:80px" onchange="cfg.tipo=+this.value||10;saveCfg()"></label>
  <label>Horas del semestre <input type="number" value="${cfg.horas}" min="1" style="width:90px" onchange="cfg.horas=+this.value||48;saveCfg()"></label></div>
- <p class="l">60 min acumulados de retraso = 1 falla. Alerta a 2 puntos del umbral (8% práctica / 18% teórica).</p>
- <div class="scroll"><table><tr><th>Estudiante</th><th>Minutos perdidos</th><th>Fallas</th><th>% inasistencia</th><th>Estado</th></tr>${rows}</table></div></div>`;}
+ <div class="row"><label>Tolerancia de llegada (min) <input type="number" value="${cfg.tolLlegada}" min="0" style="width:80px" onchange="cfg.tolLlegada=Math.max(0,+this.value||0);saveCfg()"></label>
+ <label>Tolerancia baño/emergencia (min) <input type="number" value="${cfg.tolBano}" min="0" style="width:80px" onchange="cfg.tolBano=Math.max(0,+this.value||0);saveCfg()"></label>
+ <label>Minutos por falla <input type="number" value="${cfg.minFalla}" min="1" style="width:80px" onchange="cfg.minFalla=Math.max(1,+this.value||60);saveCfg()"></label>
+ <label>Margen de alerta (puntos %) <input type="number" value="${cfg.margen}" min="0" step="0.5" style="width:80px" onchange="cfg.margen=Math.max(0,+this.value||0);saveCfg()"></label></div>
+ <p class="l">${cfg.minFalla} min acumulados de retraso = 1 falla. Alerta a ${cfg.margen} puntos del umbral (desde ${(U-cfg.margen).toFixed(1)}% de inasistencia). Los descansos oficiales no se penalizan y las salidas al baño solo suman lo que excede ${cfg.tolBano} min. Retraso, baño, justificaciones y ajustes se combinan en el detalle de cada estudiante.</p>
+ <div class="row"><button class="au" onclick="exportarBase()">⬇ Exportar base estandarizada (borrador, horas programadas vs. minutos en aula)</button></div>
+ <div class="scroll"><table><tr><th>Estudiante</th><th>Minutos perdidos</th><th>Fallas</th><th>% inasistencia</th><th>Estado</th><th>Detalle</th><th>Minutos en aula</th><th></th></tr>${rows}</table></div></div>`;}
+function exportarBase(){const f=filasActuales();if(!f.length)return toast('No hay estudiantes para exportar');descargar('BORRADOR_inasistencias_'+new Date().toISOString().slice(0,10)+'.csv',csvFilas(f));}
+
+// ===== Pestaña Historial (trazabilidad completa) =====
+function drawHis(){if(LV(me.rol)<1)return;recalc();
+ if(!$('hq')){$('his').innerHTML=`<div class="card"><h2>Historial auditable de eventos</h2><p class="l">Cada entrada, salida, regreso, descanso y sesión con su marca de tiempo. Los registros anulados se conservan tachados.</p>
+ <div class="row"><input id="hq" placeholder="Buscar persona…" oninput="hf.q=this.value.toLowerCase();drawHisT()"><select id="ht" onchange="hf.t=this.value;drawHisT()"><option value="">Todos los eventos</option><option value="entrada">Entradas</option><option value="sal">Salidas y regresos</option><option value="denegado">Accesos denegados</option><option value="sesion">Sesiones</option><option value="descanso">Descansos</option><option value="manual">Ingresos manuales</option><option value="anulado">Anulados</option></select></div><div class="scroll" id="hisT"></div></div>
+ <div class="card"><h2>Salidas y tiempo en baño</h2><div class="scroll" id="salT"></div></div>
+ <div class="card"><h2>Justificaciones y ajustes</h2><div class="scroll" id="jaT"></div></div>
+ <div class="card"><h2>Registro de auditoría</h2><div class="scroll" id="audT"></div></div>`;}
+ drawHisT();}
+function drawHisT(){if(!$('hisT'))return;
+ const okT=e=>!hf.t||(hf.t=='anulado'?!!e.anulado:hf.t=='sal'?T_SAL.concat(T_REG).includes(e.tipo):hf.t=='sesion'?/sesion/.test(e.tipo):hf.t=='descanso'?/descanso/.test(e.tipo):hf.t=='manual'?!!e.manual:e.tipo==hf.t);
+ const L=evsAll().filter(e=>okT(e)&&(!hf.q||String(e.nombre||'').toLowerCase().includes(hf.q))).slice(0,150);
+ const det=e=>e.anulado?`ANULADO por ${esc(e.anulado.por)}: ${esc(e.anulado.motivo)}`:e.tipo=='entrada'?`Retraso efectivo ${retEf(e)} min${e.manual?' · '+esc(e.motivo||'')+' · autorizó '+esc(e.autorizadoPor||''):''}`:e.manual?'Autorizó '+esc(e.autorizadoPor||''):e.tipo=='denegado'?esc(e.motivo||''):e.tipo=='fin_descanso'?(e.duracionMin||0)+' min':'';
+ const puede=e=>LV(me.rol)>=1&&!e.anulado&&(e.tipo=='entrada'||T_SAL.includes(e.tipo)||T_REG.includes(e.tipo));
+ $('hisT').innerHTML=`<table><tr><th>Fecha y hora</th><th>Persona</th><th>Rol</th><th>Evento</th><th>Detalle</th><th></th></tr>${L.map(e=>`<tr${e.anulado?' style="text-decoration:line-through;opacity:.6"':''}><td>${fmtS(e.ts)}</td><td>${esc(e.nombre||'')}</td><td>${rolTag(e.rol)}</td><td>${evTxt(e)}</td><td>${det(e)}</td><td>${puede(e)?`<button title="Anular registro erróneo" onclick="anular('${esc(e._k)}')">Anular</button>`:''}</td></tr>`).join('')||'<tr><td colspan="6" class="l">Sin eventos con ese filtro.</td></tr>'}</table>`;
+ const SL=SAL.filter(x=>!hf.q||String(x.nombre||'').toLowerCase().includes(hf.q)).sort((a,b)=>b.ini-a.ini).slice(0,60);
+ $('salT').innerHTML=`<table><tr><th>Estudiante</th><th>Salida</th><th>Regreso</th><th>Duración</th><th>Estado</th></tr>${SL.map(x=>`<tr><td>${esc(x.nombre||'')}</td><td>${fmtS(x.ini)}</td><td>${x.abierta?'—':fmtS(x.fin)}</td><td>${x.min} min</td><td class="${x.exceso?'er':'ok'}">${x.abierta?'En curso':x.exceso?'Excedió '+x.exceso+' min (se computa como ausencia)':'Justificada (dentro de la tolerancia)'}${x.sinReg?' · sin regreso':''}</td></tr>`).join('')||'<tr><td colspan="5" class="l">Sin salidas registradas.</td></tr>'}</table>`;
+ const JA=Object.values(S.just||{}).map(j=>({...j,t:'Justificación · '+j.tipo})).concat(Object.values(S.ajustes||{}).map(j=>({...j,t:'Ajuste manual'}))).sort((a,b)=>b.ts-a.ts).slice(0,60);
+ $('jaT').innerHTML=`<table><tr><th>Fecha</th><th>Estudiante</th><th>Tipo</th><th>Minutos</th><th>Motivo</th><th>Responsable</th></tr>${JA.map(j=>`<tr><td>${fmtS(j.ts)}</td><td>${esc(j.nombre)}</td><td>${esc(j.t)}</td><td>${j.minutos>0&&j.t=='Ajuste manual'?'+':''}${esc(j.minutos)}</td><td>${esc(j.motivo)}</td><td>${esc(j.por)}</td></tr>`).join('')||'<tr><td colspan="6" class="l">Sin justificaciones ni ajustes.</td></tr>'}</table>`;
+ const AU=Object.values(S.audit||{}).sort((a,b)=>b.ts-a.ts).slice(0,60);
+ $('audT').innerHTML=`<table><tr><th>Fecha y hora</th><th>Responsable</th><th>Acción</th><th>Detalle</th></tr>${AU.map(a=>`<tr><td>${fmtS(a.ts)}</td><td>${esc(a.por)} ${rolTag(a.rol)}</td><td>${esc(a.accion)}</td><td>${esc(a.detalle)}</td></tr>`).join('')||'<tr><td colspan="4" class="l">Aún no hay acciones auditadas.</td></tr>'}</table>`;}
+
+// ===== Cierre de corte, validación y firma digital del docente =====
+const sha=async t=>{try{return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))].map(x=>x.toString(16).padStart(2,'0')).join('');}catch(e){let h=5381;for(const c of t)h=((h<<5)+h+c.charCodeAt(0))>>>0;return 'f'+h.toString(16);}};
+const csvFilas=f=>{const H=['Estudiante','Correo','Horas programadas','Minutos programados','Minutos perdidos','Minutos en aula','Minutos de retraso','Exceso en baño','Minutos justificados','Ajuste manual','Fallas','% inasistencia','Estado'],q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+ return '\ufeff'+[H.map(q).join(';')].concat(f.map(r=>[r.nombre,r.correo,r.prog/60,r.prog,r.min,r.aula,r.ret,r.exc,r.jus,r.aju,r.fallas,r.pct,r.estado].map(q).join(';'))).join('\r\n');};
+function descargar(n,t){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv;charset=utf-8'}));a.download=n;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+async function consolidar(){const n=($('cnom').value||'').replace(/["\\]/g,'').trim();if(!n)return toast('Escribe el nombre del corte');
+ const filas=filasActuales();if(!filas.length)return toast('No hay estudiantes para consolidar');
+ try{await db.ref('cortes').push({nombre:n,ts:Date.now(),por:me.nombre,rol:me.rol,tipo:cfg.tipo,horas:cfg.horas,minFalla:cfg.minFalla,margen:cfg.margen,filas,estado:'borrador'});
+  aud('Corte consolidado',n+' · '+filas.length+' estudiantes');toast('Corte consolidado en borrador: revísalo y fírmalo');}
+ catch(x){toast('No se pudo consolidar: revisa las reglas de Firebase.');console.warn('corte',x);}}
+async function firmar(k){const c=S.cortes[k];if(!c||c.estado=='firmado')return;if(LV(me.rol)<1)return toast('Solo el docente o un superior puede firmar');
+ if(!confirm('¿Aprobar y firmar «'+c.nombre+'»? Una vez firmado quedará disponible para la plataforma oficial.'))return;
+ const ts=Date.now(),hash=await sha(JSON.stringify({n:c.nombre,t:c.ts,f:c.filas,por:me.correo,ts}));
+ try{await db.ref('cortes/'+k).update({estado:'firmado',firma:{por:me.nombre,correo:me.correo,ts,hash}});aud('Corte firmado',c.nombre+' · '+hash.slice(0,12));toast('Corte firmado digitalmente');}
+ catch(x){toast('No se pudo firmar.');}}
+function descartar(k){const c=S.cortes[k];if(!c||c.estado=='firmado')return;if(!confirm('¿Descartar el borrador «'+c.nombre+'»?'))return;db.ref('cortes/'+k).remove().then(()=>aud('Borrador de corte descartado',c.nombre));}
+function csvCorte(k){const c=S.cortes[k];if(!c)return;if(c.estado!='firmado')return toast('Falta la aprobación y firma digital del docente');
+ descargar('Corte_'+c.nombre.replace(/[^\w-]+/g,'_')+'_FIRMADO.csv',csvFilas(Object.values(c.filas||{})));aud('Corte exportado a plataforma oficial',c.nombre);}
+function drawCor(){if(LV(me.rol)<1)return;if(document.activeElement&&document.activeElement.matches('#cor input'))return;
+ const L=Object.entries(S.cortes||{}).sort((a,b)=>b[1].ts-a[1].ts);
+ $('cor').innerHTML=`<div class="card"><h2>Cierre de corte académico</h2><p class="l">Consolida los minutos acumulados y calcula el % de inasistencia de cada estudiante. El corte queda en borrador: los datos no se pueden exportar a la plataforma oficial hasta que el docente lo apruebe con su firma digital.</p>
+ <div class="row"><input id="cnom" placeholder="Nombre del corte (ej. Primer corte)" style="flex:1;min-width:200px"><button class="pri" onclick="consolidar()">Consolidar corte</button></div></div>`+
+ (L.map(([k,c])=>{const fi=c.estado=='firmado',F=Object.values(c.filas||{});
+  return `<div class="card"><h2><span>${esc(c.nombre)}</span><span class="${fi?'ok':'wa'}">${fi?'✔ Firmado':'Borrador sin firmar'}</span></h2>
+  <p class="l">Consolidado ${fmt(c.ts)} por ${esc(c.por)} · umbral ${c.tipo}% · ${c.horas} h · ${F.length} estudiantes${fi?` · Firmó ${esc(c.firma.por)} el ${fmt(c.firma.ts)} · huella digital ${esc(String(c.firma.hash).slice(0,16))}…`:''}</p>
+  <details><summary>Ver detalle del corte</summary><div class="scroll"><table><tr><th>Estudiante</th><th>Minutos perdidos</th><th>Fallas</th><th>% inasistencia</th><th>Estado</th><th>Minutos en aula</th></tr>${F.map(r=>`<tr><td>${esc(r.nombre)}</td><td>${r.min} min</td><td>${r.fallas}</td><td>${r.pct}%</td><td class="${r.estado=='Pérdida'?'er':r.estado=='Alerta'?'wa':'ok'}">${esc(r.estado)}</td><td>${r.aula} min</td></tr>`).join('')}</table></div></details>
+  <div class="row" style="margin-top:10px">${fi?`<button class="au" onclick="csvCorte('${esc(k)}')">⬇ Exportar a plataforma oficial (CSV)</button>`:`<button class="pri" onclick="firmar('${esc(k)}')">✍ Aprobar y firmar</button><button class="gh" onclick="descartar('${esc(k)}')">Descartar borrador</button>`}</div></div>`;}).join('')||'<div class="card l">Aún no hay cortes consolidados.</div>');}
 </script></body></html>
